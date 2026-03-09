@@ -1,14 +1,29 @@
 # Music Organizer
 
-Python tool that scans a directory of music files and organizes them by genre.
+A Python tool that scans a directory of music files and organizes them automatically by genre using metadata tags.
+
+## Features
+- Reads music metadata
+- Detects genre automatically
+- Sorts files into genre folders
+- Works with large music libraries
 
 ## Technologies
 - Python
-- Mutagen library
+- Mutagen (audio metadata library)
+
+## Project Structure
+
+music-organizer
+├── main.py
+├── requirements.txt
+└── README.md
 
 ## Usage
 
-python main.py /music_folder
+python main.py /path/to/music/folder
 
-## Description
-This project organizes music files automatically based on metadata tags.
+## Future Improvements
+- Automatic duplicate detection
+- Integration with Spotify metadata
+- Web interface for music library management
