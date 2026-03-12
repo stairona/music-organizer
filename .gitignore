@@ -29,3 +29,6 @@ organized_music/
 
 # macOS
 .DS_Store
+
+# Project-specific documentation
+CLAUDE.md
