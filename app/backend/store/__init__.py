@@ -18,6 +18,8 @@ RUN_HISTORY_DIR = os.path.join(
     "music-organizer",
 )
 RUN_HISTORY_PATH = os.path.join(RUN_HISTORY_DIR, "run_history.json")
+LEGACY_JOURNAL_PATH = os.path.join(RUN_HISTORY_DIR, "journal.json")
+LEGACY_MIGRATED_PATH = os.path.join(RUN_HISTORY_DIR, "journal.legacy-migrated.json")
 
 
 def _ensure_store_exists() -> None:
@@ -281,10 +283,18 @@ def undo_run(run_id: str, dry_run: bool = False) -> Dict[str, Any]:
             # Unknown mode, skip
             continue
 
-    if not dry_run:
-        # Mark run as cancelled after undo (not deleted, just marked)
-        # We don't delete run entries, but we could update a flag
-        pass
+    if not dry_run and reverted > 0:
+        history = _load_run_history()
+        run_entry_mut = next((r for r in history["runs"] if r["run_id"] == run_id), None)
+        if run_entry_mut:
+            run_entry_mut["status"] = "undone"
+            run_entry_mut["undone_at"] = datetime.now(timezone.utc).isoformat()
+            run_entry_mut["undo_result"] = {
+                "reverted": reverted,
+                "failed": failed,
+                "errors": errors,
+            }
+            _save_run_history(history)
 
     return {
         "reverted": reverted,
@@ -295,8 +305,7 @@ def undo_run(run_id: str, dry_run: bool = False) -> Dict[str, Any]:
 
 def migration_needed() -> bool:
     """Check if legacy journal.json exists and needs migration."""
-    legacy_path = os.path.join(RUN_HISTORY_DIR, "journal.json")
-    return os.path.exists(legacy_path)
+    return os.path.exists(LEGACY_JOURNAL_PATH)
 
 
 def migrate_legacy_journal() -> bool:
@@ -306,12 +315,11 @@ def migrate_legacy_journal() -> bool:
     Returns:
         True if migration performed, False otherwise
     """
-    legacy_path = os.path.join(RUN_HISTORY_DIR, "journal.json")
-    if not os.path.exists(legacy_path):
+    if not os.path.exists(LEGACY_JOURNAL_PATH):
         return False
 
     try:
-        with open(legacy_path, "r", encoding="utf-8") as f:
+        with open(LEGACY_JOURNAL_PATH, "r", encoding="utf-8") as f:
             legacy = json.load(f)
 
         if not legacy:
@@ -340,8 +348,8 @@ def migrate_legacy_journal() -> bool:
         history["runs"].append(run_entry)
         _save_run_history(history)
 
-        # Optionally remove or archive legacy file
-        # os.remove(legacy_path)  # Keep for safety; can be removed manually
+        # Archive the legacy file so migration is one-time and auditable.
+        os.replace(LEGACY_JOURNAL_PATH, LEGACY_MIGRATED_PATH)
 
         logger.info(f"Migrated legacy journal to run {run_id}")
         return True

@@ -94,7 +94,7 @@ class RunEntry(BaseModel):
 
 class FullRunEntry(RunEntry):
     """Full run entry including per-file records."""
-    entries: List[FileOperation] = []
+    entries: List[FileOperation] = Field(default_factory=list)
 
 
 class UndoResult(BaseModel):

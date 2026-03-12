@@ -20,6 +20,7 @@ from app.backend.store import (
     migrate_legacy_journal,
     _load_run_history,
     _save_run_history,
+    LEGACY_MIGRATED_PATH,
     RUN_HISTORY_PATH,
 )
 
@@ -135,6 +136,9 @@ class TestRunHistoryStorage:
         assert result["reverted"] == 1
         assert result["failed"] == 0
         assert not dest_file.exists()
+        run = get_run(run_id)
+        assert run["status"] == "undone"
+        assert run["undo_result"]["reverted"] == 1
 
     def test_undo_run_dry_run(self, temp_run_history):
         run_id = create_run("/src", "/dst", {"mode": "copy"})
@@ -199,6 +203,8 @@ class TestRunHistoryStorage:
         import app.backend.store as store_mod
         monkeypatch.setattr(store_mod, "RUN_HISTORY_DIR", str(temp_run_history))
         monkeypatch.setattr(store_mod, "RUN_HISTORY_PATH", str(temp_run_history / "run_history.json"))
+        monkeypatch.setattr(store_mod, "LEGACY_JOURNAL_PATH", str(temp_run_history / "journal.json"))
+        monkeypatch.setattr(store_mod, "LEGACY_MIGRATED_PATH", str(temp_run_history / "journal.legacy-migrated.json"))
 
         assert migration_needed() is True
 
@@ -212,10 +218,50 @@ class TestRunHistoryStorage:
         assert run["status"] == "completed"
         assert run["options"]["mode"] == "copy"
         assert len(run["entries"]) == 2
+        assert not legacy_path.exists()
+        assert os.path.exists(store_mod.LEGACY_MIGRATED_PATH)
 
     def test_migration_not_needed_if_no_legacy(self, temp_run_history, monkeypatch):
         import app.backend.store as store_mod
         monkeypatch.setattr(store_mod, "RUN_HISTORY_DIR", str(temp_run_history))
         monkeypatch.setattr(store_mod, "RUN_HISTORY_PATH", str(temp_run_history / "run_history.json"))
+        monkeypatch.setattr(store_mod, "LEGACY_JOURNAL_PATH", str(temp_run_history / "journal.json"))
+        monkeypatch.setattr(store_mod, "LEGACY_MIGRATED_PATH", str(temp_run_history / "journal.legacy-migrated.json"))
         assert migration_needed() is False
         assert migrate_legacy_journal() is False
+
+    def test_get_latest_completed_run_skips_undone_runs(self, temp_run_history):
+        first = create_run("/src1", "/dst1", {"mode": "copy"})
+        update_run_progress(first, [{"source": "/src1/a.mp3", "destination": str(temp_run_history / "a.mp3")}])
+        finalize_run(first, {}, status="completed")
+        (temp_run_history / "a.mp3").write_text("content")
+        undo_run(first, dry_run=False)
+
+        second = create_run("/src2", "/dst2", {"mode": "copy"})
+        finalize_run(second, {}, status="completed")
+
+        latest = get_latest_completed_run()
+        assert latest is not None
+        assert latest["run_id"] == second
+
+    def test_migration_only_happens_once(self, temp_run_history, monkeypatch):
+        legacy_path = temp_run_history / "journal.json"
+        with open(legacy_path, "w", encoding="utf-8") as f:
+            json.dump({
+                "timestamp": "2024-01-01T00:00:00Z",
+                "mode": "copy",
+                "file_count": 1,
+                "entries": [{"source": "/a.mp3", "destination": "/dst/a.mp3"}],
+            }, f)
+
+        import app.backend.store as store_mod
+        monkeypatch.setattr(store_mod, "RUN_HISTORY_DIR", str(temp_run_history))
+        monkeypatch.setattr(store_mod, "RUN_HISTORY_PATH", str(temp_run_history / "run_history.json"))
+        monkeypatch.setattr(store_mod, "LEGACY_JOURNAL_PATH", str(temp_run_history / "journal.json"))
+        monkeypatch.setattr(store_mod, "LEGACY_MIGRATED_PATH", str(temp_run_history / "journal.legacy-migrated.json"))
+
+        assert migrate_legacy_journal() is True
+        assert migration_needed() is False
+        assert migrate_legacy_journal() is False
+        history = _load_run_history()
+        assert len(history["runs"]) == 1

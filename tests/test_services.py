@@ -111,6 +111,36 @@ class TestOrganizeService:
             copied_files = list(dst.rglob("*.flac"))
             assert len(copied_files) == 1
 
+    def test_organize_copy_mode_saves_legacy_journal(self, tmp_path, monkeypatch):
+        """Non-dry-run organize_service should save the legacy journal successfully."""
+        src = tmp_path / "src"
+        dst = tmp_path / "dst"
+        src.mkdir()
+        (src / "deep house").mkdir()
+        (src / "deep house" / "track.flac").touch()
+
+        journal_calls = []
+
+        def fake_save_journal(entries, mode):
+            journal_calls.append((entries, mode))
+
+        monkeypatch.setattr("app.backend.services.save_journal", fake_save_journal)
+
+        result = organize_service(
+            source=str(src),
+            destination=str(dst),
+            mode="copy",
+            level="specific",
+            profile="default",
+            dry_run=False,
+        )
+
+        assert result.success is True
+        assert result.summary.moved_or_copied == 1
+        assert result.journal_saved is True
+        assert len(journal_calls) == 1
+        assert journal_calls[0][1] == "copy"
+
     def test_organize_skip_existing(self, tmp_path):
         """skip_existing prevents overwriting existing files."""
         src = tmp_path / "src"

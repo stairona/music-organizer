@@ -7,11 +7,11 @@ from ..store import create_run, update_run_progress, finalize_run
 from music_organizer.scanner import scan_source_directory, is_inside_dest
 from music_organizer.classify import classify_file
 from music_organizer.fileops import compute_destination, copy_file, move_file, ensure_dir_exists
+from music_organizer.journal import save_journal
 from music_organizer.reporting import write_csv_report
 from collections import Counter
 from typing import Dict, List
 import os
-import sys
 from datetime import datetime, timezone
 
 

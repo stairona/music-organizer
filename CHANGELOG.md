@@ -37,7 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed backend route imports and organize endpoint request passthrough for `skip_unknown_only` and `on_collision`
 - Package discovery now includes the new `app` package for editable installs
 - Backend dependencies are mirrored in `requirements.txt`
-- All existing tests continue to pass (129 tests total)
+- Fixed Phase 2 run-history bugs: repeat legacy journal migration, already-undone runs staying `completed`, and missing legacy journal import in `organize_service`
+- All existing tests continue to pass (132 tests total)
 
 ---
 
