@@ -108,6 +108,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Skip files that already exist at the destination.",
     )
     p_organize.add_argument(
+        "--on-collision",
+        choices=["hash", "skip", "rename"],
+        default="hash",
+        help="When destination exists: hash skips identical content, skip keeps existing file, rename appends (1).",
+    )
+    p_organize.add_argument(
         "--skip-unknown-only",
         action="store_true",
         help="Process only files classified as Unknown.",

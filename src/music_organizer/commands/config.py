@@ -16,7 +16,9 @@ DEFAULT_CONFIG = {
     "mode": "copy",
     "level": "both",
     "profile": "default",
+    "collision_policy": "hash",
     "unknown_strategy": ["metadata", "path", "filename"],
+    "custom_genres": {},
     "cdj_safe": {
         "max_folder_depth": 3,
         "max_files_per_folder": 500,

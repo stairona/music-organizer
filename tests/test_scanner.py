@@ -66,6 +66,18 @@ def test_scan_source_directory_limit(tmp_path):
     assert len(result) == 5
 
 
+def test_scan_source_directory_ignores_hidden_system_files(tmp_path):
+    music_dir = tmp_path / "music"
+    music_dir.mkdir()
+    (music_dir / "song1.mp3").touch()
+    (music_dir / ".DS_Store").touch()
+    (music_dir / "._song1.mp3").touch()
+    (music_dir / "Thumbs.db").touch()
+
+    result = scan_source_directory(str(music_dir))
+    assert result == [str(music_dir / "song1.mp3")]
+
+
 def test_scan_nonexistent_directory():
     with pytest.raises(NotADirectoryError):
         scan_source_directory("/nonexistent/path")

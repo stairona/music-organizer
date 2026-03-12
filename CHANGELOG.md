@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Word-boundary regex matching in path keyword inference (reduces false positives like "pop" in "popcorn")
 - Support for 80+ specific genres across 10 general buckets
 - Enhanced path normalization (underscores, hyphens, dots → spaces)
+- Default collision policy now uses content hashes to skip identical duplicates on reruns
+- Copy mode now avoids metadata-preserving copies that can create `._*` sidecar files on external SSDs
+- Analyze/organize summaries now print unknown filename token diagnostics to speed up custom mapping work
 
 ### Technical
 - Proper Python package with `pyproject.toml` and entry point `music-organizer`

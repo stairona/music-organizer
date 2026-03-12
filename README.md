@@ -18,7 +18,7 @@ Manually sorting thousands of music files is impossible. This tool reads audio f
   - `--dry-run` preview before any changes
   - `--mode copy` (default) preserves originals
   - `--mode move` relocates files (use with care)
-- **Collision handling**: Automatically renames duplicates (e.g., `song (1).mp3`)
+- **Collision handling**: `--on-collision hash` skips identical duplicates and renames only when content differs
 - **`--skip-existing`**: Skip files that already exist at the destination (no renaming)
 - **`--stats-only`**: Analyze library and print genre distribution without any file operations
 - **`--exclude-dir`**: Exclude directories like `temp` or `incomplete` from scanning
@@ -171,8 +171,20 @@ If too many files end up Unknown:
 
 1. Run with `--debug` to see exactly which files are unknown and why.
 2. Use `--skip-unknown-only` to process only the unknown files after initial pass.
-3. Extend `src/rules.py` – add keywords to `PATH_KEYWORDS` or specific genres to `SPECIFIC_GENRES`.
-4. Re-run with `--mode copy` to a new destination or after manual review.
+3. Run `music-organizer analyze ...` and inspect the new `Top Unknown Filename Tokens` section.
+4. Add your collection-specific mappings under `custom_genres` in `~/.config/music-organizer/config.json`.
+5. Extend `src/rules.py` – add keywords to `PATH_KEYWORDS` or specific genres to `SPECIFIC_GENRES`.
+6. Re-run with `--mode copy` to a new destination or after manual review.
+
+## SSD-Friendly Copying
+
+- Copy mode now uses content-only copies instead of metadata-preserving copies to reduce macOS `._*` sidecar files on external SSDs.
+- Default collision policy is `--on-collision hash`, which skips identical duplicate content when re-running into the same destination.
+- For a strict no-duplicates rerun, use:
+
+```bash
+music-organizer organize "/Volumes/SSD/music" "/Volumes/SSD/music-test-v2" --mode copy --level specific --on-collision hash
+```
 
 ## Performance Notes
 

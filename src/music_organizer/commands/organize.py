@@ -94,10 +94,13 @@ def run_organize(args) -> None:
     reason_counts: Counter = Counter()
     specific_counter: Counter = Counter()
     general_counter: Counter = Counter()
+    skipped_counts: Counter = Counter()
+    unknown_sources: List[str] = []
     csv_records: List[Dict[str, str]] = []
     journal_entries: List[Dict[str, str]] = []
     # Track folder counts for CDJ-safe profile (warn if >500 files per folder)
     folder_counts: Counter = Counter()
+    collision_policy = "skip" if args.skip_existing else getattr(args, "on_collision", "hash")
 
     file_op = copy_file if args.mode == "copy" else move_file
 
@@ -116,6 +119,7 @@ def run_organize(args) -> None:
 
         if specific == "Unknown":
             unknown_count += 1
+            unknown_sources.append(src_file)
         else:
             specific_counter[specific] += 1
             general_counter[general] += 1
@@ -126,40 +130,45 @@ def run_organize(args) -> None:
             profile=args.profile,
         )
 
-        if args.skip_existing and os.path.exists(dest_path):
-            processed_count += 1
-            csv_records.append({
-                "source_path": src_file,
-                "detected_specific_genre": specific,
-                "detected_general_genre": general,
-                "classification_reason": reason,
-                "destination_path": dest_path + " (skipped - exists)",
-            })
-            continue
-
-        success, final_dest = file_op(src_file, dest_path, dry_run=dry_run)
+        success, final_dest, result = file_op(
+            src_file,
+            dest_path,
+            dry_run=dry_run,
+            collision_policy=collision_policy,
+        )
 
         if success or dry_run:
             processed_count += 1
-            if not dry_run:
+            if result in ("copied", "moved"):
                 action_count += 1
                 journal_entries.append({
                     "source": src_file,
                     "destination": final_dest,
                     "mode": args.mode,
                 })
+            elif result.startswith("skipped"):
+                skipped_counts[result] += 1
             # Track folder count for CDJ-safe profile
             dest_dir_final = os.path.dirname(final_dest)
-            folder_counts[dest_dir_final] += 1
+            if result in ("copied", "moved", "dry-run"):
+                folder_counts[dest_dir_final] += 1
         else:
             processed_count += 1
+
+        destination_display = final_dest
+        if result == "skipped-existing":
+            destination_display = final_dest + " (skipped - exists)"
+        elif result == "skipped-duplicate":
+            destination_display = final_dest + " (skipped - duplicate content)"
+        elif not success:
+            destination_display = f"ERROR: {final_dest}"
 
         csv_records.append({
             "source_path": src_file,
             "detected_specific_genre": specific,
             "detected_general_genre": general,
             "classification_reason": reason,
-            "destination_path": final_dest if success else f"ERROR: {final_dest}",
+            "destination_path": destination_display,
         })
 
         if not args.quiet and (idx % 100 == 0 or idx == total_files):
@@ -190,4 +199,6 @@ def run_organize(args) -> None:
         reason_counts=reason_counts,
         specific_counter=specific_counter,
         general_counter=general_counter,
+        unknown_sources=unknown_sources,
+        skipped_counts=skipped_counts,
     )

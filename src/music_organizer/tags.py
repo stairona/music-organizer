@@ -20,6 +20,11 @@ from mutagen.asf import ASF
 logger = logging.getLogger(__name__)
 
 
+def should_ignore_filename(filename: str) -> bool:
+    """Return True for hidden or system files that should never be processed."""
+    return filename.startswith('.') or filename == 'Thumbs.db'
+
+
 def get_audio_format(filepath: str) -> str:
     """Return the audio format category based on file extension."""
     ext = os.path.splitext(filepath)[1].lower()
@@ -151,7 +156,7 @@ def get_audio_files(
         # Skip hidden directories and excluded directory names
         dirnames[:] = [d for d in dirnames if not d.startswith('.') and d not in exclude_dirs]
         for fname in filenames:
-            if fname.startswith('.'):
+            if should_ignore_filename(fname):
                 continue
             ext = os.path.splitext(fname)[1].lower()
             if ext in supported_exts:

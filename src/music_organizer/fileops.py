@@ -12,9 +12,22 @@ import os
 import re
 import shutil
 import logging
+import hashlib
 from typing import Tuple
 
 logger = logging.getLogger(__name__)
+
+
+def file_sha256(file_path: str, chunk_size: int = 1024 * 1024) -> str:
+    """Return a SHA-256 digest for the given file."""
+    digest = hashlib.sha256()
+    with open(file_path, "rb") as handle:
+        while True:
+            chunk = handle.read(chunk_size)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def sanitize_filename(filename: str, max_length: int = 60) -> str:
@@ -99,6 +112,38 @@ def get_unique_dest_path(dest_file: str) -> str:
             raise RuntimeError(f"Too many duplicates for {dest_file}")
 
 
+def resolve_collision(src: str, dest: str, collision_policy: str = "hash") -> Tuple[str, str]:
+    """
+    Resolve a destination collision.
+
+    Returns:
+        (final_destination, status)
+
+    status is one of:
+        - ready
+        - skipped-existing
+        - skipped-duplicate
+    """
+    if not os.path.exists(dest):
+        return dest, "ready"
+
+    if collision_policy == "skip":
+        return dest, "skipped-existing"
+
+    if collision_policy == "rename":
+        return get_unique_dest_path(dest), "ready"
+
+    if collision_policy == "hash":
+        try:
+            if file_sha256(src) == file_sha256(dest):
+                return dest, "skipped-duplicate"
+        except OSError as exc:
+            logger.warning(f"Could not compare hashes for {src} and {dest}: {exc}")
+        return get_unique_dest_path(dest), "ready"
+
+    raise ValueError(f"Unknown collision policy: {collision_policy}")
+
+
 def compute_destination(
     src_file: str,
     dest_root: str,
@@ -167,39 +212,57 @@ def compute_destination(
     return dest_path
 
 
-def copy_file(src: str, dest: str, dry_run: bool = False) -> Tuple[bool, str]:
+def copy_file(
+    src: str,
+    dest: str,
+    dry_run: bool = False,
+    collision_policy: str = "hash",
+) -> Tuple[bool, str, str]:
     """
     Copy a file to destination, handling collisions.
 
     Returns:
-        (success, final_dest_path)
+        (success, final_dest_path, result)
     """
-    if dry_run:
-        return True, dest  # pretend success
+    final_dest, collision_status = resolve_collision(src, dest, collision_policy)
 
-    final_dest = get_unique_dest_path(dest)
+    if collision_status != "ready":
+        return True, final_dest, collision_status
+
+    if dry_run:
+        return True, final_dest, "dry-run"
+
     try:
-        shutil.copy2(src, final_dest)  # copy2 preserves metadata
-        return True, final_dest
+        shutil.copyfile(src, final_dest)
+        return True, final_dest, "copied"
     except Exception as e:
         logger.error(f"Error copying {src} to {dest}: {e}")
-        return False, dest
+        return False, final_dest, "error"
 
 
-def move_file(src: str, dest: str, dry_run: bool = False) -> Tuple[bool, str]:
+def move_file(
+    src: str,
+    dest: str,
+    dry_run: bool = False,
+    collision_policy: str = "hash",
+) -> Tuple[bool, str, str]:
     """
     Move a file to destination, handling collisions.
 
     Returns:
-        (success, final_dest_path)
+        (success, final_dest_path, result)
     """
-    if dry_run:
-        return True, dest  # pretend success
+    final_dest, collision_status = resolve_collision(src, dest, collision_policy)
 
-    final_dest = get_unique_dest_path(dest)
+    if collision_status != "ready":
+        return True, final_dest, collision_status
+
+    if dry_run:
+        return True, final_dest, "dry-run"
+
     try:
         shutil.move(src, final_dest)
-        return True, final_dest
+        return True, final_dest, "moved"
     except Exception as e:
         logger.error(f"Error moving {src} to {dest}: {e}")
-        return False, dest
+        return False, final_dest, "error"

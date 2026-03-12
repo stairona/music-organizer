@@ -57,6 +57,7 @@ def run_analyze(args) -> None:
     reason_counts: Counter = Counter()
     specific_counter: Counter = Counter()
     general_counter: Counter = Counter()
+    unknown_sources: List[str] = []
     csv_records: List[Dict[str, str]] = []
 
     for idx, src_file in enumerate(files, 1):
@@ -68,6 +69,7 @@ def run_analyze(args) -> None:
 
         if specific == "Unknown":
             unknown_count += 1
+            unknown_sources.append(src_file)
         else:
             specific_counter[specific] += 1
             general_counter[general] += 1
@@ -94,4 +96,5 @@ def run_analyze(args) -> None:
         reason_counts=reason_counts,
         specific_counter=specific_counter,
         general_counter=general_counter,
+        unknown_sources=unknown_sources,
     )

@@ -116,6 +116,12 @@ def run_interactive(args) -> None:
     )
     dry_run = "preview" in dry_run_choice
 
+    on_collision = _ask(
+        "If a destination file already exists, what should happen?",
+        choices=["hash", "skip", "rename"],
+        default="hash",
+    )
+
     # Summary
     print("\n─── Summary ───")
     print(f"  Source:      {source}")
@@ -123,6 +129,7 @@ def run_interactive(args) -> None:
     print(f"  Mode:        {mode}")
     print(f"  Level:       {level}")
     print(f"  Profile:     {profile}")
+    print(f"  Collision:   {on_collision}")
     print(f"  Dry run:     {dry_run}")
     print("────────────────")
 
@@ -137,6 +144,7 @@ def run_interactive(args) -> None:
     args.mode = mode
     args.level = level
     args.profile = profile
+    args.on_collision = on_collision
     args.dry_run = dry_run
     args.interactive = False  # prevent recursion
 

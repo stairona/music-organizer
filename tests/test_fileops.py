@@ -6,9 +6,13 @@ import logging
 import os
 import pytest
 from music_organizer.fileops import (
+    copy_file,
+    file_sha256,
     get_unique_dest_path,
     compute_destination,
     ensure_dir_exists,
+    move_file,
+    resolve_collision,
     sanitize_filename,
 )
 
@@ -179,3 +183,72 @@ def test_compute_destination_cdj_safe_no_warnings_when_within_limits(tmp_path, c
     # Should not have any CDJ-safe warnings
     cdj_warnings = [rec.message for rec in caplog.records if "CDJ-safe:" in rec.message]
     assert len(cdj_warnings) == 0
+
+
+def test_file_sha256_matches_identical_content(tmp_path):
+    first = tmp_path / "a.mp3"
+    second = tmp_path / "b.mp3"
+    first.write_bytes(b"same-data")
+    second.write_bytes(b"same-data")
+
+    assert file_sha256(str(first)) == file_sha256(str(second))
+
+
+def test_resolve_collision_hash_skips_duplicate_content(tmp_path):
+    src = tmp_path / "source.mp3"
+    dest = tmp_path / "dest.mp3"
+    src.write_bytes(b"same-data")
+    dest.write_bytes(b"same-data")
+
+    final_dest, status = resolve_collision(str(src), str(dest), collision_policy="hash")
+    assert final_dest == str(dest)
+    assert status == "skipped-duplicate"
+
+
+def test_resolve_collision_hash_renames_different_content(tmp_path):
+    src = tmp_path / "source.mp3"
+    dest = tmp_path / "dest.mp3"
+    src.write_bytes(b"source-data")
+    dest.write_bytes(b"dest-data")
+
+    final_dest, status = resolve_collision(str(src), str(dest), collision_policy="hash")
+    assert final_dest == str(tmp_path / "dest (1).mp3")
+    assert status == "ready"
+
+
+def test_copy_file_skip_duplicate_content(tmp_path):
+    src = tmp_path / "source.mp3"
+    dest = tmp_path / "dest.mp3"
+    src.write_bytes(b"same-data")
+    dest.write_bytes(b"same-data")
+
+    success, final_dest, result = copy_file(str(src), str(dest), collision_policy="hash")
+    assert success is True
+    assert final_dest == str(dest)
+    assert result == "skipped-duplicate"
+
+
+def test_copy_file_rename_different_content(tmp_path):
+    src = tmp_path / "source.mp3"
+    dest = tmp_path / "dest.mp3"
+    src.write_bytes(b"source-data")
+    dest.write_bytes(b"dest-data")
+
+    success, final_dest, result = copy_file(str(src), str(dest), collision_policy="hash")
+    assert success is True
+    assert final_dest == str(tmp_path / "dest (1).mp3")
+    assert result == "copied"
+    assert os.path.exists(final_dest)
+
+
+def test_move_file_skip_duplicate_content(tmp_path):
+    src = tmp_path / "source.mp3"
+    dest = tmp_path / "dest.mp3"
+    src.write_bytes(b"same-data")
+    dest.write_bytes(b"same-data")
+
+    success, final_dest, result = move_file(str(src), str(dest), collision_policy="hash")
+    assert success is True
+    assert final_dest == str(dest)
+    assert result == "skipped-duplicate"
+    assert src.exists()

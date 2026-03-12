@@ -46,6 +46,12 @@ class TestCLIParser:
         assert args.dry_run is False
         assert args.level == "general"
         assert args.profile == "default"
+        assert args.on_collision == "hash"
+
+    def test_organize_collision_policy_parser(self):
+        parser = build_parser()
+        args = parser.parse_args(["organize", "/src", "/dst", "--on-collision", "rename"])
+        assert args.on_collision == "rename"
 
     def test_genres_parser(self):
         parser = build_parser()
