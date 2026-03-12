@@ -1,85 +1,182 @@
 # Music Organizer
 
-A Python tool that automatically organizes music files by genre using metadata tags.
+Automatically organize large music libraries by genre using embedded metadata, folder names, and filename patterns.
 
-## Overview
+## What Problem Does This Solve?
 
-This utility scans a directory of music files, reads their embedded metadata to detect the genre, and automatically sorts files into corresponding genre folders. It's designed for music enthusiasts and collectors who want to quickly organize large music libraries without manual sorting.
+Manually sorting thousands of music files is impossible. This tool reads audio file metadata, infers genre from folder/filename patterns, and safely copies or moves files into organized folder structures. It handles messy real-world collections and dramatically reduces the amount of music ending up in "Unknown."
 
-> **Note:** This project is currently in initial setup phase. The `src/main.py` implementation is pending. See the [CLAUDE.md](CLAUDE.md) for development instructions.
+## Features
 
-## Planned Features
+- **Multiple audio format support**: MP3, M4A, AAC, FLAC, OGG, OPUS, WAV, AIFF, WMA
+- **Three genre classification levels**:
+  - `--level general`: Broad buckets (Electronic, Pop, Latin, etc.)
+  - `--level specific`: Detailed subgenres (e.g., Deep House, Reggaeton, Melodic Techno)
+  - `--level both`: Nests specific under general (recommended for maximum organization)
+- **Aggressive unknown reduction**: Falls back to path/filename keywords when metadata is missing
+- **Safe operations**:
+  - `--dry-run` preview before any changes
+  - `--mode copy` (default) preserves originals
+  - `--mode move` relocates files (use with care)
+- **Collision handling**: Automatically renames duplicates (e.g., `song (1).mp3`)
+- **CSV reporting**: Full log of every decision and destination
+- **Performance**: Efficient for libraries with tens of thousands of tracks
+- **Debug mode**: See exactly why each file was classified a certain way
 
-- Read audio metadata using the `mutagen` library
-- Detect genre automatically from ID3 tags and other metadata formats
-- Sort files into genre-specific folders
-- Handle large music libraries efficiently
-- Provide a summary of processed files and any issues encountered
-- Support for common audio formats: MP3, FLAC, M4A, OGG, etc.
+## Supported Genres
 
-## Problem It Solves
+The tool recognizes 80+ specific genres across 9 general buckets:
 
-Manual music organization is time-consuming and error-prone. This tool automates the process by:
-- Eliminating the need to manually listen to or inspect each file
-- Ensuring consistent genre classification based on actual metadata
-- Handling thousands of files quickly
-- Preserving original file structure if desired (copy vs move modes)
+- **Electronic**: House, Techno, Trance, Drum And Bass, Dubstep, EDM, etc.
+- **Hip-Hop / Rap**: Rap, Trap, Drill, Grime, and regional variants
+- **R&B / Soul / Funk**
+- **Pop**: Dance Pop, Latin Pop, Hyperpop, etc.
+- **Rock / Indie / Metal**
+- **Latin**: Reggaeton, Bachata, Salsa, Moombahton, Corridos, etc.
+- **Reggae / Dub / Dancehall**
+- **Jazz / Blues**
+- **Classical / Score**
 
-## Tech Stack
+Unknown files are placed in "Other / Unknown". See `src/rules.py` for the complete genre list.
 
-- **Python 3.8+**
-- **mutagen** – Audio metadata library (supports MP3, FLAC, M4A, OGG, Opus, WavPack, and more)
-
-## Development Status
-
-**Stage:** Scaffolded, implementation pending
-
-The project structure is in place:
-```
-music-organizer/
-├── src/
-│   └── main.py          # To be implemented
-├── docs/
-├── tests/
-├── requirements.txt     # mutagen pinned to 1.47.0
-├── .gitignore
-└── README.md
-```
-
-The implementation will follow the specifications in `CLAUDE.md`, which outlines:
-- Clean, modular Python code
-- Error handling and safe file operations (no automatic deletion without confirmation)
-- Clear progress reporting
-
-## Installation (for when implementation is complete)
+## Installation
 
 ```bash
-# Clone and enter directory
+# Clone and enter
 git clone https://github.com/stairona/music-organizer.git
 cd music-organizer
 
-# Optional: create virtual environment
+# Optional virtual environment (recommended)
 python -m venv venv
-source venv/bin/activate  # Windows: venv\\Scripts\\activate
+source venv/bin/activate  # On Windows: venv\\Scripts\\activate
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-## Usage (planned)
+## Basic Usage
 
 ```bash
-python src/main.py /path/to/your/music/library
+# Dry-run copy into organized structure (safe first step)
+python -m music_organizer.scanner "/Volumes/Music/Massive Library" "/Volumes/Organized Music" --dry-run --level both
+
+# Actually copy files (default mode)
+python -m music_organizer.scanner "/Volumes/Music/Massive Library" "/Volumes/Organized Music" --mode copy --level both
+
+# Move instead of copy (irreversible, use with caution)
+python -m music_organizer.scanner "/Volumes/Music/Massive Library" "/Volumes/Organized Music" --mode move --level both
+
+# Generate a CSV report
+python -m music_organizer.scanner "/src" "/dest" --mode copy --level both --report "organization_log.csv"
+
+# Process only the Unknown files (after initial run)
+python -m music_organizer.scanner "/src" "/dest" --mode copy --level both --skip-unknown-only
+
+# Limit to first 100 files for quick testing
+python -m music_organizer.scanner "/src" "/dest" --mode copy --limit 100
+
+# Enable debug output to see classification decisions
+python -m music_organizer.scanner "/src" "/dest" --mode copy --debug
 ```
 
-Options may include:
-- `--dry-run` to preview without moving files
-- `--copy` to copy instead of move
-- `--verbose` for detailed output
+## Recommended First Command (Safe Dry-Run)
 
-## Contributing
+**macOS**:
 
-This project is developed with Claude Code following the guidelines in `CLAUDE.md`. Contributions and suggestions are welcome.
+```bash
+cd /Users/nicolasaguirre/Development/light-projects/music-organizer
+python -m music_organizer.scanner "/Volumes/YourMusic" "/Volumes/OrganizedMusic" --dry-run --level both --report "dry_run_report.csv"
+```
+
+This will:
+- Scan your music library without touching any files
+- Show how files would be classified and where they would go
+- Generate `dry_run_report.csv` with complete details
+- Print a summary of proposed organization
+
+Review the CSV and summary before running for real.
+
+## Output Structure
+
+```
+/destination/
+├── Electronic/
+│   ├── Deep House/
+│   ├── Progressive House/
+│   ├── Techno/
+│   └── ...
+├── Pop/
+│   ├── Dance Pop/
+│   └── Pop/
+├── Latin/
+│   ├── Reggaeton/
+│   ├── Bachata/
+│   └── ...
+└── Other Unknown/
+    └── Unknown/
+```
+
+For `--level both`, the hierarchy is: `General/Specific/`. For `--level general` it's `General/`. For `--level specific` it's `Specific/`.
+
+## How It Works
+
+1. **Metadata extraction**: Uses `mutagen` to read embedded ID3/vorbis/MP4 tags.
+2. **Keyword inference**: If metadata is missing, blank, or too vague, scans parent folder names and filename for known genre keywords (e.g., "techno", "reggaeton", "house").
+3. **Conservative defaults**: Only assigns a specific genre if confidence is high. Ambiguous cases go to "Unknown" rather than guessing wrong.
+4. **Collision handling**: Duplicate filenames in a genre folder get `(1)`, `(2)` appended automatically.
+5. **Recursion guard**: Will not process files already inside the destination tree.
+
+## Advanced: Improving Unknown Rate
+
+If too many files end up Unknown:
+
+1. Run with `--debug` to see exactly which files are unknown and why.
+2. Use `--skip-unknown-only` to process only the unknown files after initial pass.
+3. Extend `src/rules.py` – add keywords to `PATH_KEYWORDS` or specific genres to `SPECIFIC_GENRES`.
+4. Re-run with `--mode copy` to a new destination or after manual review.
+
+## Project Structure
+
+```
+music-organizer/
+├── src/
+│   ├── main.py           # CLI entry point
+│   ├── scanner.py        # File discovery
+│   ├── tags.py           # Metadata reading (mutagen)
+│   ├── classify.py       # Genre inference engine
+│   ├── rules.py          # Genre definitions & mappings
+│   ├── fileops.py        # Copy/move with collision handling
+│   └── reporting.py      # CSV + summary
+├── docs/
+├── tests/
+├── requirements.txt
+├── .gitignore
+└── README.md
+```
+
+## Error Handling & Safety
+
+- Files are never deleted or overwritten accidentally.
+- Duplicate names are automatically renamed.
+- The tool skips files that are already in the destination to avoid recursion.
+- If copying/moving fails for a particular file, the error is printed but processing continues.
+- The `--dry-run` flag is strongly recommended for first runs.
+
+## Performance Notes
+
+- Expect ~10–30k files per minute on a modern MacBook Air/Pro (SSD to SSD copy).
+- Memory usage is low; files are processed one-at-a-time.
+- Using `--limit` for initial testing is wise.
+
+## Troubleshooting
+
+**No files found**: Ensure your source path is correct and contains audio files with supported extensions. Hidden/system folders are skipped.
+
+**All files become Unknown**: Run with `--debug` to inspect metadata extraction. Add missing keywords to `rules.py` to improve your collection's specific folder names.
+
+**Permission denied**: Ensure you have read access to source and write access to destination. Use absolute paths.
+
+**Slow performance**: Large libraries take time. The tool shows progress every 100 files. Copying an entire library of thousands of files will take several minutes.
 
 ## License
 
