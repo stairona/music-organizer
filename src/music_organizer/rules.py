@@ -338,8 +338,7 @@ PATH_KEYWORDS: Dict[str, str] = {
     "score": "Classical",
     "orchestral": "Classical",
     "symphony": "Classical",
-    "piano": "Classical",  # Could be ambiguous, but often solo piano pieces are classical
-    "instrumental": "Classical",  # Fallback for purely instrumental
+    # "piano" and "instrumental" removed — too ambiguous across genres
 
     # Note: We intentionally do NOT include generic keywords like "unknown", "misc", "various"
     # because they would match common folder names and produce false positives.
@@ -369,7 +368,7 @@ GENERAL_TO_SPECIFIC: Dict[str, List[str]] = {
     "Latin": ["Reggaeton", "Bachata", "Salsa", "Latin", "Moombahton"],
     "Reggae / Dub / Dancehall": ["Reggae", "Dancehall", "Dub"],
     "Jazz / Blues": ["Jazz", "Blues", "Vocal Jazz"],
-    "Classical / Score": ["Classical", "Soundtrack", "Instrumental"],
+    "Classical / Score": ["Classical", "Soundtrack"],
     "Other / Unknown": [],
 }
 
@@ -393,18 +392,27 @@ def genre_matches_keyword(genre_name: str) -> List[str]:
     if normalized in SPECIFIC_GENRES_LOWER:
         return [SPECIFIC_GENRES_LOWER[normalized]]
 
-    # Check for known keywords within the genre string
-    matches = []
+    # Check for known keywords within the genre string using word boundaries
+    # and prefer longer (more specific) matches
+    import re
+    matches = []  # (genre, keyword_length)
     for keyword, mapped_genre in PATH_KEYWORDS.items():
-        if keyword in normalized:
-            matches.append(mapped_genre)
+        pattern = r'\b' + re.escape(keyword) + r'\b'
+        if re.search(pattern, normalized):
+            matches.append((mapped_genre, len(keyword)))
+
+    if not matches:
+        return []
+
+    # Sort by keyword length descending (most specific first), then alphabetically
+    matches.sort(key=lambda x: (-x[1], x[0]))
 
     # Remove duplicates while preserving order
     seen = set()
     unique = []
-    for m in matches:
-        if m not in seen:
-            seen.add(m)
-            unique.append(m)
+    for genre, _ in matches:
+        if genre not in seen:
+            seen.add(genre)
+            unique.append(genre)
 
     return unique

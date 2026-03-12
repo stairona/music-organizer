@@ -185,9 +185,9 @@ def main():
     processed_count = 0
     action_count = 0
     unknown_count = 0
-    reason_counts: Dict[str, int] = {}
-    specific_counter: Dict[str, int] = {}
-    general_counter: Dict[str, int] = {}
+    reason_counts: Counter = Counter()
+    specific_counter: Counter = Counter()
+    general_counter: Counter = Counter()
     csv_records: List[Dict[str, str]] = []
 
     file_op = copy_file if args.mode == "copy" else move_file
@@ -209,14 +209,14 @@ def main():
             continue
 
         # Increment reason counter
-        reason_counts[reason] = reason_counts.get(reason, 0) + 1
+        reason_counts[reason] += 1
 
         # Update genre counters
         if specific == "Unknown":
             unknown_count += 1
         else:
-            specific_counter[specific] = specific_counter.get(specific, 0) + 1
-            general_counter[general] = general_counter.get(general, 0) + 1
+            specific_counter[specific] += 1
+            general_counter[general] += 1
 
         # Compute destination (avoid creating directories for dry-run/stats-only)
         dest_path = compute_destination(
@@ -284,8 +284,8 @@ def main():
         moved_or_copied=action_count,
         unknown_count=unknown_count,
         reason_counts=reason_counts,
-        specific_counter=Counter(specific_counter),
-        general_counter=Counter(general_counter),
+        specific_counter=specific_counter,
+        general_counter=general_counter,
     )
 
 
