@@ -41,6 +41,17 @@ def run_organize(args) -> None:
         run_interactive(args)
         return
 
+    # Apply preset if specified (non-interactive only)
+    if getattr(args, "preset", None):
+        from ..presets import get_preset
+        try:
+            preset = get_preset(args.preset)
+            args.level = preset["level"]
+            args.profile = preset["profile"]
+        except ValueError as e:
+            logging.error(str(e))
+            sys.exit(1)
+
     _setup_logging(debug=args.debug, quiet=args.quiet)
 
     src_dir = os.path.abspath(args.source)

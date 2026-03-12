@@ -119,6 +119,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output profile. cdj-safe shortens names and limits folder depth.",
     )
     p_organize.add_argument(
+        "--preset",
+        choices=["club", "latin", "open-format", "festival"],
+        help="DJ preset: apply recommended level and profile settings.",
+    )
+    p_organize.add_argument(
         "--interactive",
         action="store_true",
         help="Launch guided DJ workflow with prompts.",

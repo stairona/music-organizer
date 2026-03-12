@@ -65,19 +65,47 @@ def run_interactive(args) -> None:
         default="copy",
     )
 
-    # Level
-    level = _ask(
-        "Choose organization style:",
-        choices=["general", "specific", "both"],
-        default="both",
-    )
-
-    # Profile
-    profile = _ask(
-        "Target workflow:",
-        choices=["default", "cdj-safe"],
-        default="default",
-    )
+    # Preset selection (if not already set via CLI)
+    preset_choice = getattr(args, "preset", None)
+    if preset_choice:
+        # CLI passed a preset; use it without prompting
+        from ..presets import get_preset
+        try:
+            preset = get_preset(preset_choice)
+            level = preset["level"]
+            profile = preset["profile"]
+            print(f"\nUsing preset: {preset_choice} (level={level}, profile={profile})")
+        except ValueError:
+            logging.error(f"Invalid preset: {preset_choice}")
+            sys.exit(1)
+        # Clear preset so run_organize doesn't apply again
+        args.preset = None
+    else:
+        # Ask user if they want a DJ preset
+        preset_opt = _ask(
+            "Select a DJ preset (optional):",
+            choices=["Custom", "Club", "Latin", "Open-Format", "Festival"],
+            default="Custom",
+        )
+        if preset_opt != "Custom":
+            from ..presets import get_preset
+            preset = get_preset(preset_opt.lower())
+            level = preset["level"]
+            profile = preset["profile"]
+            print(f"Applying preset: {preset_opt} (level={level}, profile={profile})")
+        else:
+            # Level
+            level = _ask(
+                "Choose organization style:",
+                choices=["general", "specific", "both"],
+                default="both",
+            )
+            # Profile
+            profile = _ask(
+                "Target workflow:",
+                choices=["default", "cdj-safe"],
+                default="default",
+            )
 
     # Dry run
     dry_run_choice = _ask(
