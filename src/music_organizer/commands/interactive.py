@@ -4,6 +4,7 @@ interactive command — guided DJ workflow with prompts.
 Asks the user a series of questions then runs the organize pipeline.
 """
 
+import logging
 import os
 import sys
 

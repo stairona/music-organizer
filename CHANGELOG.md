@@ -5,6 +5,40 @@ All notable changes to the Music Organizer project will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - v2 CLI Rework
+
+### Added
+- Complete subcommand-based CLI architecture:
+  - `analyze`: Scan library and show genre distribution without moving files
+  - `organize`: Main command for copying/moving files into genre-folders
+  - `genres`: Display all supported genres and bucket mappings
+  - `undo`: Revert the last organize operation using journal
+  - `config`: Initialize, show, or locate configuration file
+- Interactive DJ workflow mode (`--interactive`): guided prompts for source/destination/mode/level/profile
+- Undo journal system: JSON journal at `~/.config/music-organizer/journal.json` for safe rollback
+- Config system: persistent `~/.config/music-organizer/config.json` with init/show/path commands
+- CDJ-safe profile (`--profile cdj-safe`):
+  - Filename sanitization (special characters stripped)
+  - Max folder depth of 3
+  - Path length warnings (>180 chars)
+  - Folder count warnings (>500 files)
+- Custom genre mapping: define your own keyword-to-genre mappings in `config.json` under `custom_genres`
+- DJ presets (`--preset`): pre-configured workflows for different contexts
+  - `club`: house/techno emphasis, specific + cdj-safe
+  - `latin`: detailed Latin breakdown, specific + default
+  - `open-format`: broad general buckets, general + default
+  - `festival`: EDM-focused, specific + cdj-safe
+
+### Improved
+- Word-boundary regex matching in path keyword inference (reduces false positives like "pop" in "popcorn")
+- Support for 80+ specific genres across 10 general buckets
+- Enhanced path normalization (underscores, hyphens, dots → spaces)
+
+### Technical
+- Proper Python package with `pyproject.toml` and entry point `music-organizer`
+- Comprehensive test suite: 82 passing tests
+- Logging throughout for observability and debugging
+
 ## [1.1.0] - Phase 2 (In Progress)
 
 ### Added
