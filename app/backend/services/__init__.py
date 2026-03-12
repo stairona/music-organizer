@@ -2,23 +2,23 @@
 Service orchestration layer for music organizer operations.
 """
 
-from ..models import AnalyzeResult, OrganizeResult, RunSummary, UnknownDiagnostics
+from ..models import AnalyzeResult, OrganizeResult, RunSummary, UnknownDiagnostics, FileOperation
+from ..store import create_run, update_run_progress, finalize_run
 from music_organizer.scanner import scan_source_directory, is_inside_dest
 from music_organizer.classify import classify_file
 from music_organizer.fileops import compute_destination, copy_file, move_file, ensure_dir_exists
 from music_organizer.reporting import write_csv_report
-from music_organizer.journal import save_journal
 from collections import Counter
-from typing import Dict, List, Tuple
+from typing import Dict, List
 import os
 import sys
+from datetime import datetime, timezone
 
 
 def _should_process_file(
     skip_unknown_only: bool,
-    classification: Tuple[str, str, str],
+    classification: tuple,
 ) -> bool:
-    """Determine if a file should be processed based on skip_unknown_only flag."""
     if not skip_unknown_only:
         return True
     specific, general, reason = classification
@@ -33,20 +33,6 @@ def analyze_service(
     debug: bool = False,
     report_path: str = None,
 ) -> AnalyzeResult:
-    """
-    Analyze a music library and return structured results.
-
-    Args:
-        source: Source directory path
-        level: Classification level (general/specific/both)
-        limit: Max files to process (for testing)
-        exclude_dir: Directories to exclude
-        debug: Enable debug logging
-        report_path: Optional CSV report output path
-
-    Returns:
-        AnalyzeResult with summary statistics
-    """
     src_dir = os.path.abspath(source)
     if not os.path.isdir(src_dir):
         raise ValueError(f"Source directory does not exist: {src_dir}")
@@ -82,10 +68,7 @@ def analyze_service(
     csv_records: List[Dict[str, str]] = []
 
     for src_file in files:
-        specific, general, reason = classify_file(
-            src_file, level=level, debug=debug
-        )
-
+        specific, general, reason = classify_file(src_file, level=level, debug=debug)
         reason_counts[reason] += 1
 
         if specific == "Unknown":
@@ -103,7 +86,6 @@ def analyze_service(
             "destination_path": "(analyze only)",
         })
 
-    # Write CSV report if requested
     if report_path:
         write_csv_report(report_path, csv_records, debug=debug)
 
@@ -119,7 +101,7 @@ def analyze_service(
 
     unknown_diag = UnknownDiagnostics(
         count=unknown_count,
-        sample_paths=unknown_sources[:10],  # First 10 samples
+        sample_paths=unknown_sources[:10],
     )
 
     return AnalyzeResult(
@@ -145,25 +127,6 @@ def organize_service(
     debug: bool = False,
     report_path: str = None,
 ) -> OrganizeResult:
-    """
-    Organize files into genre folders with structured results.
-
-    Args:
-        source: Source directory path
-        destination: Destination directory path
-        mode: "copy" or "move"
-        level: Classification level
-        profile: Output profile (default or cdj-safe)
-        dry_run: Preview without making changes
-        skip_existing: Skip files already at destination
-        limit: Max files to process
-        exclude_dir: Directories to exclude
-        debug: Enable debug logging
-        report_path: Optional CSV report path
-
-    Returns:
-        OrganizeResult with summary and status
-    """
     src_dir = os.path.abspath(source)
     dest_dir = os.path.abspath(destination)
 
@@ -182,6 +145,21 @@ def organize_service(
 
     total_files = len(files)
     if total_files == 0:
+        # Finalize empty run as well
+        run_id = create_run(
+            source=src_dir,
+            destination=dest_dir,
+            options={
+                "mode": mode,
+                "level": level,
+                "profile": profile,
+                "dry_run": dry_run,
+                "skip_existing": skip_existing,
+                "skip_unknown_only": skip_unknown_only,
+                "on_collision": on_collision,
+            },
+        )
+        finalize_run(run_id, summary={}, status="completed")
         return OrganizeResult(
             success=True,
             summary=RunSummary(
@@ -195,6 +173,22 @@ def organize_service(
             ),
         )
 
+    # Create run entry before processing
+    run_id = create_run(
+        source=src_dir,
+        destination=dest_dir,
+        options={
+            "mode": mode,
+            "level": level,
+            "profile": profile,
+            "dry_run": dry_run,
+            "skip_existing": skip_existing,
+            "skip_unknown_only": skip_unknown_only,
+            "on_collision": on_collision,
+        },
+        started_at=datetime.now(timezone.utc),
+    )
+
     processed_count = 0
     action_count = 0
     unknown_count = 0
@@ -207,6 +201,7 @@ def organize_service(
     journal_entries: List[Dict[str, str]] = []
     folder_counts: Counter = Counter()
     warnings: List[str] = []
+    operation_entries: List[FileOperation] = []  # For run history
 
     collision_policy = "skip" if skip_existing else on_collision
     file_op = copy_file if mode == "copy" else move_file
@@ -217,7 +212,6 @@ def organize_service(
 
         specific, general, reason = classify_file(src_file, level=level, debug=debug)
 
-        # Apply skip_unknown_only filter
         if not _should_process_file(skip_unknown_only, (specific, general, reason)):
             continue
 
@@ -252,6 +246,11 @@ def organize_service(
                     "destination": final_dest,
                     "mode": mode,
                 })
+                # Record for run history
+                operation_entries.append(FileOperation(
+                    source=src_file,
+                    destination=final_dest,
+                ))
             elif result.startswith("skipped"):
                 skipped_counts[result] += 1
             dest_dir_final = os.path.dirname(final_dest)
@@ -274,13 +273,17 @@ def organize_service(
             "destination_path": destination_display,
         })
 
+    # Update run with all file operations (batch append)
+    if operation_entries:
+        update_run_progress(run_id, [op.model_dump() for op in operation_entries])
+
     # CDJ-safe warnings
     if profile == "cdj-safe":
         for folder, count in folder_counts.items():
             if count > 500:
                 warnings.append(f"CDJ-safe: Folder exceeds 500 files ({count}): {folder}")
 
-    # Save journal
+    # Save journal for undo (legacy single-run support)
     journal_saved = False
     if journal_entries and not dry_run:
         try:
@@ -306,6 +309,14 @@ def organize_service(
     unknown_diag = UnknownDiagnostics(
         count=unknown_count,
         sample_paths=unknown_sources[:10],
+    )
+
+    # Finalize run in registry
+    finalize_run(
+        run_id,
+        summary=summary.model_dump(),
+        status="completed",
+        finished_at=datetime.now(timezone.utc),
     )
 
     return OrganizeResult(

@@ -69,3 +69,36 @@ class ProgressEvent(BaseModel):
     """Event model for streaming progress updates."""
     event_type: str  # e.g., "scan_complete", "classification_progress", "file_processed"
     data: Dict[str, Any]
+
+
+# --- Run History Models ---
+
+class FileOperation(BaseModel):
+    """Record of a single file operation within a run."""
+    source: str
+    destination: str
+    # Could add: classification (specific, general, reason), result (copied/moved/skipped)
+
+
+class RunEntry(BaseModel):
+    """Metadata for a single organize run (lightweight, excludes full entries)."""
+    run_id: str
+    started_at: str  # ISO datetime
+    finished_at: Optional[str] = None
+    source: str
+    destination: str
+    status: str  # running/completed/cancelled/failed
+    options: Dict[str, Any]
+    summary: Optional[Dict[str, Any]] = None  # RunSummary as dict
+
+
+class FullRunEntry(RunEntry):
+    """Full run entry including per-file records."""
+    entries: List[FileOperation] = []
+
+
+class UndoResult(BaseModel):
+    """Result of an undo operation."""
+    reverted: int
+    failed: int
+    errors: List[str] = Field(default_factory=list)

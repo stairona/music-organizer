@@ -22,12 +22,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backend dependencies: `fastapi`, `pydantic`, `uvicorn`
 - Tests for models and service layer (test_models.py, test_services.py)
 
+### Added
+- Run registry and multi-run undo history:
+  - New append-only `run_history.json` under `~/.config/music-organizer/`
+  - Store layer (`app/backend/store/`) with create_run, update_run_progress, finalize_run, list_runs, get_run, undo_run, migration from legacy journal
+  - Typed models: `FileOperation`, `RunEntry`, `FullRunEntry`, `UndoResult`
+  - `organize_service` now records every file operation in run history
+  - Enhanced `music-organizer undo` to use run history with full migration support; falls back to legacy journal
+  - migrate_legacy_journal() converts old single-journal format to new run entries
+- New tests for run history store (test_store.py): 15 tests covering CRUD, undo, migration
+
 ### Technical
 - Preserved existing CLI behavior unchanged
 - Fixed backend route imports and organize endpoint request passthrough for `skip_unknown_only` and `on_collision`
 - Package discovery now includes the new `app` package for editable installs
 - Backend dependencies are mirrored in `requirements.txt`
-- All existing tests continue to pass (117 tests total)
+- All existing tests continue to pass (129 tests total)
 
 ---
 
