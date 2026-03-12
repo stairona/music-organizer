@@ -5,6 +5,29 @@ All notable changes to the Music Organizer project will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Backend API scaffolding with FastAPI:
+  - `app/backend/main.py`: FastAPI application entry point
+  - `app/backend/models/`: Typed Pydantic models for requests/responses
+  - `app/backend/services/`: Service orchestration layer (extracted from CLI)
+  - `app/backend/routes/`: API route definitions
+- Service layer with reusable functions:
+  - `analyze_service`: returns structured `AnalyzeResult`
+  - `organize_service`: returns structured `OrganizeResult`
+- API endpoints (stubbed):
+  - `POST /api/v1/analyze` – library analysis
+  - `POST /api/v1/organize` – file organization
+- Backend dependencies: `fastapi`, `pydantic`, `uvicorn`
+- Tests for models and service layer (test_models.py, test_services.py)
+
+### Technical
+- Preserved existing CLI behavior unchanged
+- All existing tests continue to pass (82 tests total)
+
+---
+
 ## [2.0.0] - v2 CLI Rework
 
 ### Added
