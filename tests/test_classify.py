@@ -159,3 +159,67 @@ class TestWordBoundaries:
     def test_edm_in_edmonds_should_not_match(self):
         result = infer_genre_from_path("/places/edmonds/song.mp3")
         assert result != "EDM", f"Should not match 'edm' in 'edmonds', got {result}"
+
+
+class TestCustomGenreMapping:
+    """Test custom genre mappings from config take priority over built-in rules."""
+
+    def test_custom_priority_over_builtin(self, monkeypatch):
+        """Custom keyword mapping should override built-in PATH_KEYWORDS."""
+        import music_organizer.classify as classify
+        monkeypatch.setattr(classify, "_CUSTOM_GENRES_CACHE", {"house": "Techno"})
+        result = classify.infer_genre_from_path("/music/house/song.mp3")
+        assert result == "Techno", f"Expected 'Techno' from custom mapping, got {result}"
+
+    def test_custom_case_insensitive(self, monkeypatch):
+        """Custom keyword matching should be case-insensitive."""
+        import music_organizer.classify as classify
+        # Cache keys are normalized to lowercase by _get_custom_genres
+        monkeypatch.setattr(classify, "_CUSTOM_GENRES_CACHE", {"myhouse": "Deep House"})
+        # Path contains mixed case; infer_genre_from_path lowercases before matching
+        result = classify.infer_genre_from_path("/some/MyHouse/song.mp3")
+        assert result == "Deep House", f"Expected 'Deep House' for case variation, got {result}"
+
+    def test_custom_word_boundary(self, monkeypatch):
+        """Custom keywords should respect word boundaries."""
+        import music_organizer.classify as classify
+        monkeypatch.setattr(classify, "_CUSTOM_GENRES_CACHE", {"house": "House"})
+        result = classify.infer_genre_from_path("/some/houseware/song.mp3")
+        assert result is None, f"Should not match 'house' in 'houseware', got {result}"
+
+    def test_fallback_to_builtin_when_no_custom_match(self, monkeypatch):
+        """If custom mapping doesn't match, should fall back to built-in."""
+        import music_organizer.classify as classify
+        monkeypatch.setattr(classify, "_CUSTOM_GENRES_CACHE", {"other": "Something"})
+        result = classify.infer_genre_from_path("/music/house/song.mp3")
+        assert result == "House", f"Expected built-in 'House', got {result}"
+
+    def test_custom_longer_keyword_wins(self, monkeypatch):
+        """Among multiple custom matches, longer keyword should win."""
+        import music_organizer.classify as classify
+        monkeypatch.setattr(classify, "_CUSTOM_GENRES_CACHE", {
+            "house": "House",
+            "deep house": "Deep House"
+        })
+        result = classify.infer_genre_from_path("/deep house music/song.mp3")
+        assert result == "Deep House", f"Expected 'Deep House' (longer match), got {result}"
+
+    def test_custom_genre_value_not_in_specific(self, monkeypatch):
+        """Custom mapping values can be arbitrary genre names."""
+        import music_organizer.classify as classify
+        monkeypatch.setattr(classify, "_CUSTOM_GENRES_CACHE", {"mykw": "MyCustomGenre"})
+        result = classify.infer_genre_from_path("/some/mykw/song.mp3")
+        assert result == "MyCustomGenre", f"Expected 'MyCustomGenre', got {result}"
+
+    def test_classify_file_uses_custom_mapping(self, tmp_path, monkeypatch):
+        """classify_file should use custom mapping via path inference."""
+        import music_organizer.classify as classify
+        monkeypatch.setattr(classify, "_CUSTOM_GENRES_CACHE", {"myfolder": "Techno"})
+        test_file = tmp_path / "myfolder" / "test.mp3"
+        test_file.parent.mkdir()
+        test_file.touch()
+        specific, general, reason = classify.classify_file(str(test_file))
+        assert specific == "Techno"
+        assert reason == "path"
+        # General bucket should be derived from Techno -> Electronic
+        assert general == "Electronic"

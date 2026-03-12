@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "music-organizer"
-version = "1.0.0"
+version = "2.0.0"
 description = "Automatically organize large music libraries by genre using metadata, path, and filename analysis"
 readme = "README.md"
 license = {text = "MIT"}
@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-music-organizer = "music_organizer.main:main"
+music-organizer = "music_organizer.cli:cli_main"
 
 [project.optional-dependencies]
 dev = [
