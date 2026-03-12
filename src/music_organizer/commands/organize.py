@@ -85,6 +85,8 @@ def run_organize(args) -> None:
     general_counter: Counter = Counter()
     csv_records: List[Dict[str, str]] = []
     journal_entries: List[Dict[str, str]] = []
+    # Track folder counts for CDJ-safe profile (warn if >500 files per folder)
+    folder_counts: Counter = Counter()
 
     file_op = copy_file if args.mode == "copy" else move_file
 
@@ -110,6 +112,7 @@ def run_organize(args) -> None:
         dest_path = compute_destination(
             src_file, dest_dir, specific, general, args.level,
             create_dirs=not dry_run,
+            profile=args.profile,
         )
 
         if args.skip_existing and os.path.exists(dest_path):
@@ -134,6 +137,9 @@ def run_organize(args) -> None:
                     "destination": final_dest,
                     "mode": args.mode,
                 })
+            # Track folder count for CDJ-safe profile
+            dest_dir_final = os.path.dirname(final_dest)
+            folder_counts[dest_dir_final] += 1
         else:
             processed_count += 1
 
@@ -147,6 +153,12 @@ def run_organize(args) -> None:
 
         if not args.quiet and (idx % 100 == 0 or idx == total_files):
             logging.info(f"Processed {idx}/{total_files}...")
+
+    # CDJ-safe: warn if any folder exceeds 500 files
+    if args.profile == "cdj-safe":
+        for folder, count in folder_counts.items():
+            if count > 500:
+                logging.warning(f"CDJ-safe: Folder exceeds 500 files ({count} new files): {folder}")
 
     # Save journal for undo (only if we actually moved/copied files)
     if journal_entries and not dry_run:
