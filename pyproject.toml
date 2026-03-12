@@ -28,7 +28,8 @@ dev = [
 include-package-data = true
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src", "."]
+include = ["music_organizer*", "app*"]
 namespaces = false
 
 [tool.setuptools.package-data]

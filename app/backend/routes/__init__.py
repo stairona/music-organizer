@@ -3,8 +3,8 @@ API route handlers.
 """
 
 from fastapi import APIRouter, HTTPException
-from ...services import analyze_service, organize_service
-from ...models import AnalyzeRequest, OrganizeRequest, AnalyzeResult, OrganizeResult
+from ..services import analyze_service, organize_service
+from ..models import AnalyzeRequest, OrganizeRequest, AnalyzeResult, OrganizeResult
 
 router = APIRouter(prefix="/api/v1", tags=["api"])
 
@@ -42,6 +42,8 @@ async def organize_endpoint(request: OrganizeRequest):
             profile=request.profile,
             dry_run=request.dry_run,
             skip_existing=request.skip_existing,
+            skip_unknown_only=request.skip_unknown_only,
+            on_collision=request.on_collision,
             limit=request.limit,
             exclude_dir=request.exclude_dir,
         )

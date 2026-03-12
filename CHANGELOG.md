@@ -24,7 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Technical
 - Preserved existing CLI behavior unchanged
-- All existing tests continue to pass (82 tests total)
+- Fixed backend route imports and organize endpoint request passthrough for `skip_unknown_only` and `on_collision`
+- Package discovery now includes the new `app` package for editable installs
+- Backend dependencies are mirrored in `requirements.txt`
+- All existing tests continue to pass (117 tests total)
 
 ---
 
