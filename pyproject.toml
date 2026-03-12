@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "music-organizer"
+version = "1.0.0"
+description = "Automatically organize large music libraries by genre using metadata, path, and filename analysis"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+dependencies = [
+    "mutagen>=1.47.0",
+]
+
+[project.scripts]
+music-organizer = "music_organizer.main:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false
+
+[tool.setuptools.package-data]
+"music_organizer" = ["py.typed"]

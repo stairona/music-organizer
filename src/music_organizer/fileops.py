@@ -10,7 +10,10 @@ Ensures:
 
 import os
 import shutil
+import logging
 from typing import Tuple
+
+logger = logging.getLogger(__name__)
 
 
 def ensure_dir_exists(dir_path: str) -> None:
@@ -43,6 +46,7 @@ def compute_destination(
     specific_genre: str,
     general_genre: str,
     level: str,
+    create_dirs: bool = True,
 ) -> str:
     """
     Compute the destination file path based on classification level.
@@ -53,6 +57,7 @@ def compute_destination(
         specific_genre: Detected specific genre.
         general_genre: Detected general bucket.
         level: "general", "specific", or "both".
+        create_dirs: If True, create destination directories (default). Set False for dry-run/stats-only.
 
     Returns:
         Full destination file path (may be modified for uniqueness later).
@@ -71,7 +76,8 @@ def compute_destination(
         # nest specific under general
         dest_dir = os.path.join(dest_root, general_genre, specific_genre)
 
-    ensure_dir_exists(dest_dir)
+    if create_dirs:
+        ensure_dir_exists(dest_dir)
     return os.path.join(dest_dir, filename)
 
 
@@ -90,7 +96,7 @@ def copy_file(src: str, dest: str, dry_run: bool = False) -> Tuple[bool, str]:
         shutil.copy2(src, final_dest)  # copy2 preserves metadata
         return True, final_dest
     except Exception as e:
-        print(f"Error copying {src} to {dest}: {e}")
+        logger.error(f"Error copying {src} to {dest}: {e}")
         return False, dest
 
 
@@ -109,5 +115,5 @@ def move_file(src: str, dest: str, dry_run: bool = False) -> Tuple[bool, str]:
         shutil.move(src, final_dest)
         return True, final_dest
     except Exception as e:
-        print(f"Error moving {src} to {dest}: {e}")
+        logger.error(f"Error moving {src} to {dest}: {e}")
         return False, dest

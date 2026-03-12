@@ -5,7 +5,8 @@ Supports: MP3, M4A/MP4/AAC, FLAC, OGG, OPUS, WAV, AIFF, WMA.
 """
 
 import os
-from typing import Optional, Tuple
+import logging
+from typing import Optional, List
 
 from mutagen import File
 from mutagen.easyid3 import EasyID3
@@ -15,6 +16,8 @@ from mutagen.oggvorbis import OggVorbis
 from mutagen.wavpack import WavPack
 from mutagen.aiff import AIFF
 from mutagen.asf import ASF
+
+logger = logging.getLogger(__name__)
 
 
 def get_audio_format(filepath: str) -> str:
@@ -45,7 +48,7 @@ def read_genre(filepath: str, debug: bool = False) -> Optional[str]:
         audio = File(filepath, easy=True)
         if audio is None:
             if debug:
-                print(f"[DEBUG] mutagen could not parse: {filepath}")
+                logger.debug(f"mutagen could not parse: {filepath}")
             return None
 
         # --- MP3 (EasyID3) ---
@@ -55,7 +58,7 @@ def read_genre(filepath: str, debug: bool = False) -> Optional[str]:
             if genre_list:
                 genre = str(genre_list[0]).strip()
                 if debug:
-                    print(f"[DEBUG] MP3 genre from {filepath}: {genre}")
+                    logger.debug(f"MP3 genre from {filepath}: {genre}")
                 return genre if genre else None
 
         # --- MP4/M4A/AAC ---
@@ -65,7 +68,7 @@ def read_genre(filepath: str, debug: bool = False) -> Optional[str]:
             if genre_list:
                 genre = str(genre_list[0]).strip()
                 if debug:
-                    print(f"[DEBUG] MP4 genre from {filepath}: {genre}")
+                    logger.debug(f"MP4 genre from {filepath}: {genre}")
                 return genre if genre else None
 
         # --- FLAC / OGG / OPUS (Vorbis comments) ---
@@ -75,7 +78,7 @@ def read_genre(filepath: str, debug: bool = False) -> Optional[str]:
                 if key in audio:
                     genre = str(audio[key][0]).strip()
                     if debug:
-                        print(f"[DEBUG] FLAC/OGG genre from {filepath}: {genre}")
+                        logger.debug(f"FLAC/OGG genre from {filepath}: {genre}")
                     return genre if genre else None
 
         # --- WAV ---
@@ -86,7 +89,7 @@ def read_genre(filepath: str, debug: bool = False) -> Optional[str]:
                 if key in audio:
                     genre = str(audio[key][0]).strip()
                     if debug:
-                        print(f"[DEBUG] WAV genre from {filepath}: {genre}")
+                        logger.debug(f"WAV genre from {filepath}: {genre}")
                     return genre if genre else None
 
         # --- AIFF ---
@@ -95,7 +98,7 @@ def read_genre(filepath: str, debug: bool = False) -> Optional[str]:
                 if key in audio:
                     genre = str(audio[key][0]).strip()
                     if debug:
-                        print(f"[DEBUG] AIFF genre from {filepath}: {genre}")
+                        logger.debug(f"AIFF genre from {filepath}: {genre}")
                     return genre if genre else None
 
         # --- WMA / ASF ---
@@ -104,21 +107,32 @@ def read_genre(filepath: str, debug: bool = False) -> Optional[str]:
             if 'WM/Genre' in audio:
                 genre = str(audio['WM/Genre'][0]).strip()
                 if debug:
-                    print(f"[DEBUG] WMA genre from {filepath}: {genre}")
+                    logger.debug(f"WMA genre from {filepath}: {genre}")
                 return genre if genre else None
 
     except Exception as e:
         if debug:
-            print(f"[DEBUG] Error reading genre from {filepath}: {e}")
+            logger.debug(f"Error reading genre from {filepath}: {e}")
         return None
 
     return None
 
 
-def get_audio_files(src_dir: str, limit: Optional[int] = None, debug: bool = False) -> list[str]:
+def get_audio_files(
+    src_dir: str,
+    limit: Optional[int] = None,
+    debug: bool = False,
+    exclude_dirs: Optional[List[str]] = None,
+) -> List[str]:
     """
     Recursively find audio files in src_dir with supported extensions.
     Returns a list of absolute paths.
+
+    Args:
+        src_dir: Root directory to scan.
+        limit: Optional maximum number of files.
+        debug: Enable debug output.
+        exclude_dirs: List of directory names to exclude (e.g., ['temp', 'incomplete']).
     """
     supported_exts = {
         '.mp3', '.m4a', '.mp4', '.aac',
@@ -129,10 +143,13 @@ def get_audio_files(src_dir: str, limit: Optional[int] = None, debug: bool = Fal
         '.wma'
     }
 
+    if exclude_dirs is None:
+        exclude_dirs = []
+
     files = []
     for root, dirnames, filenames in os.walk(src_dir):
-        # Skip hidden directories (like .git, .DS_Store)
-        dirnames[:] = [d for d in dirnames if not d.startswith('.')]
+        # Skip hidden directories and excluded directory names
+        dirnames[:] = [d for d in dirnames if not d.startswith('.') and d not in exclude_dirs]
         for fname in filenames:
             if fname.startswith('.'):
                 continue

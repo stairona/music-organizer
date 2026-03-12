@@ -10,12 +10,16 @@ dist/
 build/
 venv/
 env/
+.venv/
 
 # Virtual environment (if present)
 birds_env/
 
 # Output/moved files
 organized_music/
+
+# CSV reports (generated)
+*.csv
 
 # IDE
 .vscode/

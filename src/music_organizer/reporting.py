@@ -3,9 +3,11 @@ Reporting utilities: CSV logs and terminal summary.
 """
 
 import csv
-import sys
+import logging
 from collections import Counter
-from typing import Dict, List, Tuple
+from typing import Dict, List
+
+logger = logging.getLogger(__name__)
 
 
 def write_csv_report(
@@ -34,8 +36,7 @@ def write_csv_report(
         writer.writeheader()
         writer.writerows(records)
 
-    if debug:
-        print(f"[DEBUG] CSV report written to: {csv_path}")
+    logger.debug(f"CSV report written to: {csv_path}")
 
 
 def print_summary(
@@ -48,24 +49,25 @@ def print_summary(
     general_counter: Counter,
 ) -> None:
     """
-    Print a concise summary to the terminal.
+    Print a concise summary to the terminal using logging.
     """
-    print("\n" + "=" * 60)
-    print("Music Organizer Summary")
-    print("=" * 60)
-    print(f"Total files scanned:        {total}")
-    print(f"Successfully processed:     {processed}")
-    print(f"Moved/Copied:               {moved_or_copied}")
-    print(f"Unclassified (Unknown):     {unknown_count}")
-    print("\nClassification reasons:")
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("Music Organizer Summary")
+    logger.info("=" * 60)
+    logger.info(f"Total files scanned:        {total}")
+    logger.info(f"Successfully processed:     {processed}")
+    logger.info(f"Moved/Copied:               {moved_or_copied}")
+    logger.info(f"Unclassified (Unknown):     {unknown_count}")
+    logger.info("\nClassification reasons:")
     for reason, count in sorted(reason_counts.items()):
-        print(f"  {reason}: {count}")
+        logger.info(f"  {reason}: {count}")
 
-    print("\nTop General Genres:")
+    logger.info("\nTop General Genres:")
     for genre, cnt in general_counter.most_common(10):
-        print(f"  {genre}: {cnt}")
+        logger.info(f"  {genre}: {cnt}")
 
-    print("\nTop Specific Genres:")
+    logger.info("\nTop Specific Genres:")
     for genre, cnt in specific_counter.most_common(10):
-        print(f"  {genre}: {cnt}")
-    print("=" * 60)
+        logger.info(f"  {genre}: {cnt}")
+    logger.info("=" * 60)

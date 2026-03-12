@@ -3,23 +3,38 @@
 Music Organizer – CLI for organizing music libraries by genre.
 
 Usage examples:
-  python -m music_organizer.scanner <src> <dest> --mode copy --level general
-  python -m music_organizer.scanner <src> <dest> --mode move --level both --dry-run
+  python -m music_organizer.main <src> <dest> --mode copy --level general
+  python -m music_organizer.main <src> <dest> --mode move --level both --dry-run
+  python -m music_organizer.main <src> <dest> --stats-only
 """
 
 import argparse
 import os
 import sys
-from typing import Dict, List
+import logging
+from typing import Dict, List, Tuple
+from collections import Counter
 
-# Add parent directory to path for running as module
-# (Not strictly needed for python -m, but kept for direct execution)
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+# Relative imports (package structure)
 from .scanner import scan_source_directory, is_inside_dest
 from .classify import classify_file
 from .fileops import compute_destination, copy_file, move_file, ensure_dir_exists
 from .reporting import write_csv_report, print_summary
+
+
+def setup_logging(debug: bool = False, quiet: bool = False) -> None:
+    """Configure logging output."""
+    level = logging.DEBUG if debug else (logging.WARNING if quiet else logging.INFO)
+    logging.basicConfig(
+        level=level,
+        format="%(message)s",  # Simple format for CLI
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
+
+
+def get_logger():
+    """Get module logger."""
+    return logging.getLogger(__name__)
 
 
 def parse_args():
@@ -52,6 +67,11 @@ def parse_args():
         help="Preview what would happen without actually copying/moving files.",
     )
     parser.add_argument(
+        "--stats-only",
+        action="store_true",
+        help="Analyze library and print genre distribution without copying or moving any files. Destination path is still required but not used for file operations.",
+    )
+    parser.add_argument(
         "--report",
         metavar="CSV_PATH",
         help="Optional: write a CSV report with details of each processed file.",
@@ -65,6 +85,22 @@ def parse_args():
         "--debug",
         action="store_true",
         help="Enable debug output (shows metadata reads, classification decisions).",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress informational output; only show summary and errors.",
+    )
+    parser.add_argument(
+        "--exclude-dir",
+        action="append",
+        metavar="DIR_NAME",
+        help="Directory names to exclude from scanning (e.g., 'incomplete', 'temp'). Can be used multiple times.",
+    )
+    parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Skip files that already exist at the destination (do not rename duplicates).",
     )
     parser.add_argument(
         "--skip-unknown-only",
@@ -93,40 +129,57 @@ def should_process_file(
 def main():
     args = parse_args()
 
+    # Setup logging
+    setup_logging(debug=args.debug, quiet=args.quiet)
+    logger = get_logger()
+
     src_dir = os.path.abspath(args.source)
     dest_dir = os.path.abspath(args.destination)
 
     if not os.path.isdir(src_dir):
-        print(f"Error: Source directory does not exist: {src_dir}")
+        logging.error(f"Source directory does not exist: {src_dir}")
         sys.exit(1)
 
-    # Ensure destination exists (even in dry-run for reporting)
-    if not args.dry_run:
+    # Destination existence only required for actual file operations (not stats-only)
+    if not os.path.isdir(dest_dir) and not args.stats_only:
+        logging.error(f"Destination directory does not exist: {dest_dir}")
+        sys.exit(1)
+
+    # Determine if we should avoid creating directories (dry-run or stats-only)
+    dry_run_or_stats = args.dry_run or args.stats_only
+
+    # Ensure destination exists only if we're actually writing files
+    if not dry_run_or_stats:
         ensure_dir_exists(dest_dir)
 
     if args.debug:
-        print(f"[DEBUG] Source: {src_dir}")
-        print(f"[DEBUG] Destination: {dest_dir}")
-        print(f"[DEBUG] Mode: {args.mode}")
-        print(f"[DEBUG] Level: {args.level}")
-        print(f"[DEBUG] Dry run: {args.dry_run}")
+        logging.debug(f"Source: {src_dir}")
+        logging.debug(f"Destination: {dest_dir}")
+        logging.debug(f"Mode: {args.mode}")
+        logging.debug(f"Level: {args.level}")
+        logging.debug(f"Dry run: {args.dry_run}")
+        logging.debug(f"Stats only: {args.stats_only}")
         if args.limit:
-            print(f"[DEBUG] Limit: {args.limit}")
-        print("[DEBUG] Scanning files...")
+            logging.debug(f"Limit: {args.limit}")
+        if args.exclude_dir:
+            logging.debug(f"Exclude directories: {args.exclude_dir}")
+        logging.debug("Scanning files...")
+    if args.stats_only:
+        logging.info("Stats-only mode: no files will be copied or moved.")
 
     # Scan for files
     try:
-        files = scan_source_directory(src_dir, limit=args.limit, debug=args.debug)
+        files = scan_source_directory(src_dir, limit=args.limit, debug=args.debug, exclude_dirs=args.exclude_dir)
     except Exception as e:
-        print(f"Error scanning source directory: {e}")
+        logging.error(f"Error scanning source directory: {e}")
         sys.exit(1)
 
     total_files = len(files)
     if total_files == 0:
-        print("No audio files found in source directory.")
+        logging.warning("No audio files found in source directory.")
         sys.exit(0)
 
-    print(f"Found {total_files} audio file(s). Starting organization...")
+    logging.info(f"Found {total_files} audio file(s). Starting organization...")
 
     # Statistics
     processed_count = 0
@@ -143,7 +196,7 @@ def main():
         # Skip if file is already inside destination (avoid recursion)
         if is_inside_dest(src_file, dest_dir):
             if args.debug:
-                print(f"[DEBUG] Skipping (already in dest): {src_file}")
+                logging.debug(f"Skipping (already in dest): {src_file}")
             continue
 
         # Classify
@@ -152,7 +205,7 @@ def main():
         # Skip check for unknown-only mode
         if not should_process_file(src_file, dest_dir, args.skip_unknown_only, (specific, general, reason)):
             if args.debug:
-                print(f"[DEBUG] Skipping (not unknown): {src_file}")
+                logging.debug(f"Skipping (not unknown): {src_file}")
             continue
 
         # Increment reason counter
@@ -165,23 +218,44 @@ def main():
             specific_counter[specific] = specific_counter.get(specific, 0) + 1
             general_counter[general] = general_counter.get(general, 0) + 1
 
-        # Compute destination
+        # Compute destination (avoid creating directories for dry-run/stats-only)
         dest_path = compute_destination(
             src_file,
             dest_dir,
             specific,
             general,
             args.level,
+            create_dirs=not dry_run_or_stats,
         )
 
-        # Perform file operation
-        success, final_dest = file_op(src_file, dest_path, dry_run=args.dry_run)
-        if success or args.dry_run:
+        # Check if file already exists at destination (--skip-existing)
+        if args.skip_existing and os.path.exists(dest_path):
+            if args.debug:
+                logging.debug(f"Skipping existing: {src_file} -> {dest_path}")
             processed_count += 1
-            action_count += 1
-            if args.dry_run:
-                # In dry-run, final_dest is the intended path (not actually created)
-                pass
+            # Still record in CSV for completeness
+            csv_records.append({
+                "source_path": src_file,
+                "detected_specific_genre": specific,
+                "detected_general_genre": general,
+                "classification_reason": reason,
+                "destination_path": dest_path + " (skipped - already exists)",
+            })
+            continue
+
+        # Perform file operation (skip entirely if stats-only)
+        if args.stats_only:
+            # Stats-only: no file operations, but record intended destination
+            success = True
+            final_dest = dest_path
+        else:
+            success, final_dest = file_op(src_file, dest_path, dry_run=args.dry_run)
+
+        if success or args.dry_run or args.stats_only:
+            processed_count += 1
+            if not (args.dry_run or args.stats_only):
+                # Only count actual file operations (dry-run and stats-only don't copy/move)
+                action_count += 1
         else:
             # File operation failed; still count as processed (attempted)
             processed_count += 1
@@ -195,11 +269,9 @@ def main():
             "destination_path": final_dest if success else f"ERROR: {final_dest}",
         })
 
-        # Progress indicator
-        if idx % 100 == 0 or idx == total_files:
-            print(f"Processed {idx}/{total_files}...", end="\r")
-
-    print("\n")  # newline after progress
+        # Progress indicator (only show if not quiet)
+        if not args.quiet and (idx % 100 == 0 or idx == total_files):
+            logging.info(f"Processed {idx}/{total_files}...")
 
     # Write CSV report
     if args.report:

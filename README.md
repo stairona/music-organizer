@@ -13,15 +13,19 @@ Manually sorting thousands of music files is impossible. This tool reads audio f
   - `--level general`: Broad buckets (Electronic, Pop, Latin, etc.)
   - `--level specific`: Detailed subgenres (e.g., Deep House, Reggaeton, Melodic Techno)
   - `--level both`: Nests specific under general (recommended for maximum organization)
-- **Aggressive unknown reduction**: Falls back to path/filename keywords when metadata is missing
+- **Aggressive unknown reduction**: Falls back to path/filename keywords when metadata is missing, with precise word-boundary matching
 - **Safe operations**:
   - `--dry-run` preview before any changes
   - `--mode copy` (default) preserves originals
   - `--mode move` relocates files (use with care)
 - **Collision handling**: Automatically renames duplicates (e.g., `song (1).mp3`)
+- **`--skip-existing`**: Skip files that already exist at the destination (no renaming)
+- **`--stats-only`**: Analyze library and print genre distribution without any file operations
+- **`--exclude-dir`**: Exclude directories like `temp` or `incomplete` from scanning
 - **CSV reporting**: Full log of every decision and destination
 - **Performance**: Efficient for libraries with tens of thousands of tracks
 - **Debug mode**: See exactly why each file was classified a certain way
+- **`--skip-unknown-only`**: Process only files that would end up in `Unknown` for targeted improvement
 
 ## Supported Genres
 
@@ -41,12 +45,13 @@ Unknown files are placed in "Other / Unknown". See `src/rules.py` for the comple
 
 ## Installation
 
+### From GitHub
+
 ```bash
-# Clone and enter
 git clone https://github.com/stairona/music-organizer.git
 cd music-organizer
 
-# Optional virtual environment (recommended)
+# Optional: create and activate a virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\\Scripts\\activate
 
@@ -54,38 +59,72 @@ source venv/bin/activate  # On Windows: venv\\Scripts\\activate
 pip install -r requirements.txt
 ```
 
-## Basic Usage
+### Install as a Command-Line Tool (optional)
+
+You can also install the package system-wide or in your venv to get a `music-organizer` command:
+
+```bash
+pip install -e .
+```
+
+Then you can run simply:
+
+```bash
+music-organizer <source> <destination> [options]
+```
+
+## Usage
+
+All examples assume you are in the project directory and using `python -m music_organizer.main`. If you installed with `pip install -e .`, replace with `music-organizer`.
+
+### Basic Commands
 
 ```bash
 # Dry-run copy into organized structure (safe first step)
-python -m music_organizer.scanner "/Volumes/Music/Massive Library" "/Volumes/Organized Music" --dry-run --level both
+python -m music_organizer.main "/Volumes/Music/Massive Library" "/Volumes/Organized Music" --dry-run --level both
 
 # Actually copy files (default mode)
-python -m music_organizer.scanner "/Volumes/Music/Massive Library" "/Volumes/Organized Music" --mode copy --level both
+python -m music_organizer.main "/Volumes/Music/Massive Library" "/Volumes/Organized Music" --mode copy --level both
 
 # Move instead of copy (irreversible, use with caution)
-python -m music_organizer.scanner "/Volumes/Music/Massive Library" "/Volumes/Organized Music" --mode move --level both
-
-# Generate a CSV report
-python -m music_organizer.scanner "/src" "/dest" --mode copy --level both --report "organization_log.csv"
-
-# Process only the Unknown files (after initial run)
-python -m music_organizer.scanner "/src" "/dest" --mode copy --level both --skip-unknown-only
-
-# Limit to first 100 files for quick testing
-python -m music_organizer.scanner "/src" "/dest" --mode copy --limit 100
-
-# Enable debug output to see classification decisions
-python -m music_organizer.scanner "/src" "/dest" --mode copy --debug
+python -m music_organizer.main "/Volumes/Music/Massive Library" "/Volumes/Organized Music" --mode move --level both
 ```
 
-## Recommended First Command (Safe Dry-Run)
+### Advanced Options
 
-**macOS**:
+```bash
+# Generate a CSV report
+python -m music_organizer.main "/src" "/dest" --mode copy --level both --report "organization_log.csv"
+
+# Process only the Unknown files (after initial run)
+python -m music_organizer.main "/src" "/dest" --mode copy --level both --skip-unknown-only
+
+# Exclude certain directories (e.g., incomplete downloads)
+python -m music_organizer.main "/src" "/dest" --mode copy --exclude-dir temp --exclude-dir incomplete
+
+# Limit to first 100 files for quick testing
+python -m music_organizer.main "/src" "/dest" --mode copy --limit 100
+
+# Skip files that already exist at destination (don't rename duplicates)
+python -m music_organizer.main "/src" "/dest" --mode copy --skip-existing
+
+# Statistics-only mode: analyze library and print genre distribution without copying/moving
+python -m music_organizer.main "/src" "/dest" --stats-only --report "stats.csv"
+
+# Enable debug output to see classification decisions
+python -m music_organizer.main "/src" "/dest" --mode copy --debug
+
+# Combine options: quiet, exclude, and both level
+python -m music_organizer.main "/src" "/dest" --mode copy --level both --quiet --exclude-dir .Trash --exclude-dir .tmp
+```
+
+### Recommended First Command (Safe Dry-Run)
+
+**macOS / Linux**:
 
 ```bash
 cd /Users/nicolasaguirre/Development/light-projects/music-organizer
-python -m music_organizer.scanner "/Volumes/YourMusic" "/Volumes/OrganizedMusic" --dry-run --level both --report "dry_run_report.csv"
+python -m music_organizer.main "/Volumes/YourMusic" "/Volumes/OrganizedMusic" --dry-run --level both --report "dry_run_report.csv"
 ```
 
 This will:
@@ -121,7 +160,7 @@ For `--level both`, the hierarchy is: `General/Specific/`. For `--level general`
 ## How It Works
 
 1. **Metadata extraction**: Uses `mutagen` to read embedded ID3/vorbis/MP4 tags.
-2. **Keyword inference**: If metadata is missing, blank, or too vague, scans parent folder names and filename for known genre keywords (e.g., "techno", "reggaeton", "house").
+2. **Keyword inference**: If metadata is missing, blank, or too vague, scans parent folder names and filename for known genre keywords (e.g., "techno", "reggaeton", "house") using precise word-boundary matching to avoid false positives.
 3. **Conservative defaults**: Only assigns a specific genre if confidence is high. Ambiguous cases go to "Unknown" rather than guessing wrong.
 4. **Collision handling**: Duplicate filenames in a genre folder get `(1)`, `(2)` appended automatically.
 5. **Recursion guard**: Will not process files already inside the destination tree.
@@ -135,33 +174,6 @@ If too many files end up Unknown:
 3. Extend `src/rules.py` – add keywords to `PATH_KEYWORDS` or specific genres to `SPECIFIC_GENRES`.
 4. Re-run with `--mode copy` to a new destination or after manual review.
 
-## Project Structure
-
-```
-music-organizer/
-├── src/
-│   ├── main.py           # CLI entry point
-│   ├── scanner.py        # File discovery
-│   ├── tags.py           # Metadata reading (mutagen)
-│   ├── classify.py       # Genre inference engine
-│   ├── rules.py          # Genre definitions & mappings
-│   ├── fileops.py        # Copy/move with collision handling
-│   └── reporting.py      # CSV + summary
-├── docs/
-├── tests/
-├── requirements.txt
-├── .gitignore
-└── README.md
-```
-
-## Error Handling & Safety
-
-- Files are never deleted or overwritten accidentally.
-- Duplicate names are automatically renamed.
-- The tool skips files that are already in the destination to avoid recursion.
-- If copying/moving fails for a particular file, the error is printed but processing continues.
-- The `--dry-run` flag is strongly recommended for first runs.
-
 ## Performance Notes
 
 - Expect ~10–30k files per minute on a modern MacBook Air/Pro (SSD to SSD copy).
@@ -170,13 +182,50 @@ music-organizer/
 
 ## Troubleshooting
 
-**No files found**: Ensure your source path is correct and contains audio files with supported extensions. Hidden/system folders are skipped.
+**No files found**: Ensure your source path is correct and contains audio files with supported extensions. Hidden/system folders are skipped. Also check `--exclude-dir` patterns.
 
 **All files become Unknown**: Run with `--debug` to inspect metadata extraction. Add missing keywords to `rules.py` to improve your collection's specific folder names.
 
 **Permission denied**: Ensure you have read access to source and write access to destination. Use absolute paths.
 
 **Slow performance**: Large libraries take time. The tool shows progress every 100 files. Copying an entire library of thousands of files will take several minutes.
+
+## Project Structure
+
+```
+music-organizer/
+├── src/
+│   └── music_organizer/
+│       ├── __init__.py
+│       ├── main.py           # CLI entry point
+│       ├── scanner.py        # File discovery
+│       ├── tags.py           # Metadata reading (mutagen)
+│       ├── classify.py       # Genre inference engine
+│       ├── rules.py          # Genre definitions & mappings
+│       ├── fileops.py        # Copy/move with collision handling
+│       └── reporting.py      # CSV + summary
+├── tests/
+│   ├── __init__.py
+│   ├── test_classify.py
+│   ├── test_fileops.py
+│   └── test_scanner.py
+├── docs/
+├── requirements.txt
+├── pyproject.toml
+├── .gitignore
+└── README.md
+```
+
+## Development
+
+This project is structured as a proper Python package. To contribute:
+
+1. Clone the repository
+2. Create a virtual environment: `python -m venv venv`
+3. Install dependencies: `pip install -r requirements.txt`
+4. Install in editable mode: `pip install -e .[dev]`
+5. Run tests: `pytest`
+6. Make changes and submit a pull request.
 
 ## License
 

@@ -341,10 +341,8 @@ PATH_KEYWORDS: Dict[str, str] = {
     "piano": "Classical",  # Could be ambiguous, but often solo piano pieces are classical
     "instrumental": "Classical",  # Fallback for purely instrumental
 
-    # Fallbacks
-    "unknown": "Other / Unknown",
-    "misc": "Other / Unknown",
-    "various": "Other / Unknown",
+    # Note: We intentionally do NOT include generic keywords like "unknown", "misc", "various"
+    # because they would match common folder names and produce false positives.
 }
 
 # General bucket names (for directory creation and reporting)

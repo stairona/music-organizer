@@ -3,12 +3,20 @@ File scanner – discovers audio files and prepares them for processing.
 """
 
 import os
-from typing import List, Tuple
+import logging
+from typing import List, Optional
 
 from .tags import get_audio_files
 
+logger = logging.getLogger(__name__)
 
-def scan_source_directory(src_dir: str, limit: int = None, debug: bool = False) -> List[str]:
+
+def scan_source_directory(
+    src_dir: str,
+    limit: Optional[int] = None,
+    debug: bool = False,
+    exclude_dirs: Optional[List[str]] = None,
+) -> List[str]:
     """
     Scan the source directory and return a list of audio file paths.
 
@@ -16,6 +24,7 @@ def scan_source_directory(src_dir: str, limit: int = None, debug: bool = False) 
         src_dir: Root directory to scan recursively.
         limit: Optional maximum number of files to return (for testing).
         debug: Enable debug output.
+        exclude_dirs: List of directory names to exclude (e.g., ['temp', 'incomplete']).
 
     Returns:
         List of absolute file paths (strings).
@@ -24,12 +33,14 @@ def scan_source_directory(src_dir: str, limit: int = None, debug: bool = False) 
         raise NotADirectoryError(f"Source directory does not exist: {src_dir}")
 
     if debug:
-        print(f"[DEBUG] Scanning {src_dir} for audio files...")
+        logger.debug(f"Scanning {src_dir} for audio files...")
+        if exclude_dirs:
+            logger.debug(f"Excluding directories: {exclude_dirs}")
 
-    files = get_audio_files(src_dir, limit=limit, debug=debug)
+    files = get_audio_files(src_dir, limit=limit, debug=debug, exclude_dirs=exclude_dirs)
 
     if debug:
-        print(f"[DEBUG] Found {len(files)} audio file(s).")
+        logger.debug(f"Found {len(files)} audio file(s).")
 
     return files
 
