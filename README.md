@@ -219,30 +219,17 @@ music-organizer organize "/Volumes/SSD/music" "/Volumes/SSD/music-test-v2" --mod
 
 **Slow performance**: Large libraries take time. The tool shows progress every 100 files. Copying an entire library of thousands of files will take several minutes.
 
-## Project Structure
+## Project Layout
 
 ```
 music-organizer/
-├── src/
-│   └── music_organizer/
-│       ├── __init__.py
-│       ├── main.py           # CLI entry point
-│       ├── scanner.py        # File discovery
-│       ├── tags.py           # Metadata reading (mutagen)
-│       ├── classify.py       # Genre inference engine
-│       ├── rules.py          # Genre definitions & mappings
-│       ├── fileops.py        # Copy/move with collision handling
-│       └── reporting.py      # CSV + summary
-├── tests/
-│   ├── __init__.py
-│   ├── test_classify.py
-│   ├── test_fileops.py
-│   └── test_scanner.py
-├── docs/
+├── src/music_organizer/      # Core library + CLI
+├── tests/                    # pytest suite
+├── docs/                     # Notes and guides
 ├── requirements.txt
 ├── pyproject.toml
-├── .gitignore
-└── README.md
+├── README.md
+└── LICENSE
 ```
 
 ## Development
