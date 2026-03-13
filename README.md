@@ -2,6 +2,23 @@
 
 Automatically organize large music libraries by genre using embedded metadata, folder names, and filename patterns.
 
+## At a Glance
+
+- Best for large, messy music libraries
+- Uses tags first, then folder/filename keywords
+- Copy-first workflow with dry-run preview
+
+## Quickstart
+
+```bash
+git clone https://github.com/stairona/music-organizer.git
+cd music-organizer
+pip install -r requirements.txt
+
+# Safe first run
+python -m music_organizer.main "/Volumes/Music" "/Volumes/Organized" --dry-run --level both --report "dry_run.csv"
+```
+
 ## What Problem Does This Solve?
 
 Manually sorting thousands of music files is impossible. This tool reads audio file metadata, infers genre from folder/filename patterns, and safely copies or moves files into organized folder structures. It handles messy real-world collections and dramatically reduces the amount of music ending up in "Unknown."
