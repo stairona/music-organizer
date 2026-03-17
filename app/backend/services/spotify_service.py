@@ -150,3 +150,35 @@ def get_playlist_tracks(
         tracks.append(track)
 
     return tracks
+
+
+def get_playlist_info(playlist_id: str) -> dict:
+    """
+    Fetch metadata for a single playlist.
+
+    Args:
+        playlist_id: Spotify playlist ID
+
+    Returns:
+        Dict with keys: name (str), track_count (int), snapshot_id (str or None)
+
+    Raises:
+        requests.HTTPError: On API failure
+        RuntimeError: If not authenticated
+    """
+    url = f"{SPOTIFY_API_BASE}/playlists/{playlist_id}"
+    headers = _get_auth_headers()
+
+    response = requests.get(url, headers=headers, timeout=10)
+    response.raise_for_status()
+
+    data = response.json()
+    name = data.get("name", "Unknown Playlist")
+    track_count = data.get("tracks", {}).get("total", 0)
+    snapshot_id = data.get("snapshot_id")
+
+    return {
+        "name": name,
+        "track_count": track_count,
+        "snapshot_id": snapshot_id,
+    }

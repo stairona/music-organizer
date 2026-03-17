@@ -2,11 +2,13 @@
 API route handlers.
 """
 
+import asyncio
 import logging
 import requests
+import uuid
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Body
-from ..services import analyze_service, organize_service, auth_service, spotify_service
+from ..services import analyze_service, organize_service, auth_service, spotify_service, spotdl_service
 from ..models import (
     AnalyzeRequest,
     OrganizeRequest,
@@ -240,4 +242,116 @@ async def spotify_playlist_tracks(
         raise HTTPException(status_code=500, detail=f"Spotify API error: {e}")
     except Exception as e:
         logger.exception(f"Failed to fetch tracks for playlist {playlist_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- Download Routes ---
+
+from ..models import DownloadTask
+
+
+@router.post("/downloads")
+async def start_download(
+    playlist_id: str = Body(..., embed=True),
+    destination: str = Body(..., embed=True),
+    auto_organize: bool = Body(True, embed=True),
+):
+    """
+    Start downloading a Spotify playlist.
+
+    Args:
+        playlist_id: Spotify playlist ID
+        destination: Local directory to save files
+        auto_organize: Whether to auto-organize after download (default True)
+
+    Returns:
+        {"task_id": str, "status": "queued"}
+    """
+    try:
+        # Validate Spotify authentication
+        from .auth_service import get_valid_access_token
+        if not get_valid_access_token():
+            raise HTTPException(status_code=401, detail="Not authenticated with Spotify")
+
+        # Create a unique task ID
+        import uuid
+        task_id = str(uuid.uuid4())
+
+        # Get playlist info for name and total tracks
+        try:
+            info = spotify_service.get_playlist_info(playlist_id)
+            playlist_name = info.get("name", "Unknown Playlist")
+            total_tracks = info.get("track_count", 0)
+        except Exception as e:
+            logger.warning(f"Failed to fetch playlist info: {e}")
+            playlist_name = "Unknown Playlist"
+            total_tracks = 0
+
+        # Create download task record
+        create_download_task(
+            task_id=task_id,
+            playlist_id=playlist_id,
+            playlist_name=playlist_name,
+            destination=destination,
+            total_tracks=total_tracks,
+            auto_organize=auto_organize,
+        )
+
+        # Launch download in background (do not await)
+        asyncio.create_task(
+            spotdl_service.download_playlist(
+                playlist_id=playlist_id,
+                destination=destination,
+                task_id=task_id,
+                auto_organize=auto_organize,
+            )
+        )
+
+        return {"task_id": task_id, "status": "queued"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to start download")
+        raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
+
+
+@router.get("/downloads/{task_id}/status")
+async def get_download_status_endpoint(task_id: str):
+    """
+    Get status and progress of a download task.
+
+    Args:
+        task_id: Task identifier
+
+    Returns:
+        Download task details including progress history
+    """
+    try:
+        status = spotdl_service.get_download_status(task_id)
+        if status is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return status
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to get status for {task_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/downloads/{task_id}/cancel")
+async def cancel_download_endpoint(task_id: str):
+    """
+    Cancel a running download.
+
+    Args:
+        task_id: Task identifier
+
+    Returns:
+        {"cancelled": bool}
+    """
+    try:
+        success = await spotdl_service.cancel_download(task_id)
+        return {"cancelled": success}
+    except Exception as e:
+        logger.exception(f"Failed to cancel {task_id}")
         raise HTTPException(status_code=500, detail=str(e))
