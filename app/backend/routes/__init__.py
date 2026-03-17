@@ -268,9 +268,8 @@ async def start_download(
         {"task_id": str, "status": "queued"}
     """
     try:
-        # Validate Spotify authentication
-        from .auth_service import get_valid_access_token
-        if not get_valid_access_token():
+        # Validate Spotify authentication using already-imported auth_service module
+        if not auth_service.get_valid_access_token():
             raise HTTPException(status_code=401, detail="Not authenticated with Spotify")
 
         # Create a unique task ID
