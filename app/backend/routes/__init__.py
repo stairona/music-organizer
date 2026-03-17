@@ -6,7 +6,7 @@ import logging
 import requests
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Body
-from ..services import analyze_service, organize_service, auth_service
+from ..services import analyze_service, organize_service, auth_service, spotify_service
 from ..models import (
     AnalyzeRequest,
     OrganizeRequest,
@@ -168,3 +168,76 @@ async def spotify_status():
         logger = logging.getLogger(__name__)
         logger.error(f"Status check failed: {e}")
         return {"connected": False}
+
+
+# --- Spotify Playlist Routes ---
+
+@router.get("/spotify/playlists")
+async def spotify_playlists(limit: int = 50):
+    """
+    List user's Spotify playlists.
+    Requires Spotify authentication.
+
+    Args:
+        limit: Maximum number of playlists to return (max 50)
+
+    Returns:
+        {"playlists": [SpotifyPlaylist, ...]}
+    """
+    try:
+        playlists = spotify_service.get_available_playlists(limit=limit)
+        return {"playlists": [p.model_dump() for p in playlists]}
+    except RuntimeError as e:
+        # Not authenticated
+        raise HTTPException(status_code=401, detail=str(e))
+    except requests.HTTPError as e:
+        if e.response is not None:
+            if e.response.status_code == 401:
+                raise HTTPException(status_code=401, detail="Not authenticated or token expired")
+            elif e.response.status_code == 429:
+                raise HTTPException(status_code=429, detail="Spotify API rate limit exceeded")
+        raise HTTPException(status_code=500, detail=f"Spotify API error: {e}")
+    except Exception as e:
+        logger.exception("Failed to fetch playlists")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/spotify/playlist/{playlist_id}/tracks")
+async def spotify_playlist_tracks(
+    playlist_id: str,
+    limit: int = 100,
+    offset: int = 0,
+):
+    """
+    Get tracks from a specific playlist.
+
+    Args:
+        playlist_id: Spotify playlist ID
+        limit: Maximum number of tracks to return (max 100)
+        offset: Pagination offset
+
+    Returns:
+        {"tracks": [SpotifyTrack, ...], "total": int}
+    """
+    try:
+        tracks = spotify_service.get_playlist_tracks(
+            playlist_id=playlist_id,
+            limit=limit,
+            offset=offset,
+        )
+        return {"tracks": [t.model_dump() for t in tracks], "total": len(tracks)}
+    except RuntimeError as e:
+        # Not authenticated
+        raise HTTPException(status_code=401, detail=str(e))
+    except requests.HTTPError as e:
+        if e.response is not None:
+            if e.response.status_code in (401, 403):
+                raise HTTPException(status_code=e.response.status_code, detail="Access denied")
+            elif e.response.status_code == 404:
+                raise HTTPException(status_code=404, detail="Playlist not found")
+            elif e.response.status_code == 429:
+                raise HTTPException(status_code=429, detail="Spotify API rate limit exceeded")
+        raise HTTPException(status_code=500, detail=f"Spotify API error: {e}")
+    except Exception as e:
+        logger.exception(f"Failed to fetch tracks for playlist {playlist_id}")
+        raise HTTPException(status_code=500, detail=str(e))
