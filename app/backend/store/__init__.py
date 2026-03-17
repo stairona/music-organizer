@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import logging
+import sqlite3
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
 from uuid import uuid4
@@ -21,6 +22,84 @@ RUN_HISTORY_PATH = os.path.join(RUN_HISTORY_DIR, "run_history.json")
 LEGACY_JOURNAL_PATH = os.path.join(RUN_HISTORY_DIR, "journal.json")
 LEGACY_MIGRATED_PATH = os.path.join(RUN_HISTORY_DIR, "journal.legacy-migrated.json")
 
+# Spotify integration database (separate from run history)
+SPOTIFY_DB_PATH = os.path.join(RUN_HISTORY_DIR, "spotify.db")
+
+
+def _get_spotify_conn() -> sqlite3.Connection:
+    """Get a connection to the Spotify SQLite database."""
+    conn = sqlite3.connect(SPOTIFY_DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")  # Enable cascade deletes
+    return conn
+
+
+def _init_spotify_db() -> None:
+    """Create Spotify tables if they don't exist."""
+    with _get_spotify_conn() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS spotify_oauth (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                access_token TEXT NOT NULL,
+                refresh_token TEXT NOT NULL,
+                expires_at INTEGER NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS download_tasks (
+                task_id TEXT PRIMARY KEY,
+                playlist_id TEXT NOT NULL,
+                playlist_name TEXT NOT NULL,
+                destination TEXT NOT NULL,
+                status TEXT NOT NULL CHECK(status IN ('queued', 'downloading', 'completed', 'failed', 'cancelled')),
+                started_at INTEGER,
+                finished_at INTEGER,
+                total_tracks INTEGER NOT NULL,
+                completed_tracks INTEGER NOT NULL DEFAULT 0,
+                auto_organize BOOLEAN NOT NULL DEFAULT 1,
+                organize_run_id TEXT,
+                error_message TEXT,
+                spotdl_pid INTEGER,
+                progress_percent REAL NOT NULL DEFAULT 0.0,
+                current_track TEXT,
+                created_at INTEGER NOT NULL
+            );
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_download_tasks_created
+            ON download_tasks(created_at DESC);
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS progress_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id TEXT NOT NULL,
+                timestamp INTEGER NOT NULL,
+                percent REAL NOT NULL,
+                current_track TEXT NOT NULL,
+                completed_tracks INTEGER NOT NULL,
+                total_tracks INTEGER NOT NULL,
+                errors TEXT,
+                FOREIGN KEY (task_id) REFERENCES download_tasks(task_id) ON DELETE CASCADE
+            );
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_progress_history_task_id
+            ON progress_history(task_id);
+            """
+        )
+        conn.commit()
+
 
 def _ensure_store_exists() -> None:
     """Create store directory and initialize empty run history if needed."""
@@ -28,6 +107,8 @@ def _ensure_store_exists() -> None:
     if not os.path.exists(RUN_HISTORY_PATH):
         with open(RUN_HISTORY_PATH, "w", encoding="utf-8") as f:
             json.dump({"runs": []}, f, indent=2, ensure_ascii=False)
+    # Initialize Spotify DB on first access
+    _init_spotify_db()
 
 
 def _load_run_history() -> Dict[str, List[Dict[str, Any]]]:
@@ -357,3 +438,250 @@ def migrate_legacy_journal() -> bool:
     except Exception as e:
         logger.error(f"Migration failed: {e}")
         return False
+
+
+# ==================== Spotify OAuth Functions ====================
+
+
+def get_oauth_tokens() -> Optional[Dict[str, Any]]:
+    """
+    Retrieve stored OAuth tokens.
+
+    Returns:
+        Dict with access_token, refresh_token, expires_at, or None if not stored
+    """
+    with _get_spotify_conn() as conn:
+        cur = conn.execute(
+            "SELECT access_token, refresh_token, expires_at FROM spotify_oauth WHERE id = 1;"
+        )
+        row = cur.fetchone()
+        if row:
+            return dict(row)
+        return None
+
+
+def save_oauth_tokens(
+    access_token: str,
+    refresh_token: str,
+    expires_at: int,
+    created_at: Optional[int] = None,
+) -> None:
+    """
+    Store OAuth tokens, upserting the single row (id=1).
+
+    Args:
+        access_token: Spotify access token
+        refresh_token: Spotify refresh token
+        expires_at: Unix timestamp when access token expires
+        created_at: Unix timestamp (defaults to now)
+    """
+    now = int(datetime.now(timezone.utc).timestamp())
+    created_at = created_at or now
+
+    with _get_spotify_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO spotify_oauth (id, access_token, refresh_token, expires_at, created_at, updated_at)
+            VALUES (1, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                access_token = excluded.access_token,
+                refresh_token = excluded.refresh_token,
+                expires_at = excluded.expires_at,
+                updated_at = excluded.updated_at;
+            """,
+            (access_token, refresh_token, expires_at, created_at, now),
+        )
+        conn.commit()
+
+
+def delete_oauth_tokens() -> None:
+    """Delete stored OAuth tokens (logout)."""
+    with _get_spotify_conn() as conn:
+        conn.execute("DELETE FROM spotify_oauth WHERE id = 1;")
+        conn.commit()
+
+
+# ==================== Download Task Functions ====================
+
+
+def create_download_task(
+    task_id: str,
+    playlist_id: str,
+    playlist_name: str,
+    destination: str,
+    total_tracks: int,
+    auto_organize: bool = True,
+    created_at: Optional[int] = None,
+) -> None:
+    """Create a new download task in 'queued' status."""
+    now = int(datetime.now(timezone.utc).timestamp())
+    created_at = created_at or now
+
+    with _get_spotify_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO download_tasks (
+                task_id, playlist_id, playlist_name, destination, status,
+                total_tracks, auto_organize, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+            """,
+            (
+                task_id,
+                playlist_id,
+                playlist_name,
+                destination,
+                "queued",
+                total_tracks,
+                1 if auto_organize else 0,
+                created_at,
+            ),
+        )
+        conn.commit()
+
+
+def get_download_task(task_id: str) -> Optional[Dict[str, Any]]:
+    """Retrieve a download task by ID."""
+    with _get_spotify_conn() as conn:
+        cur = conn.execute("SELECT * FROM download_tasks WHERE task_id = ?;", (task_id,))
+        row = cur.fetchone()
+        if row:
+            return dict(row)
+        return None
+
+
+def update_download_task(task_id: str, updates: Dict[str, Any]) -> None:
+    """
+    Update specific fields of a download task.
+
+    Args:
+        task_id: Task identifier
+        updates: Dict of column names to new values
+    """
+    if not updates:
+        return
+
+    set_clause = ", ".join([f"{k} = ?" for k in updates.keys()])
+    values = list(updates.values())
+    values.append(task_id)
+
+    with _get_spotify_conn() as conn:
+        conn.execute(
+            f"UPDATE download_tasks SET {set_clause} WHERE task_id = ?;", values
+        )
+        conn.commit()
+
+
+def list_download_tasks(
+    limit: int = 50, status_filter: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """
+    List download tasks, most recent first.
+
+    Args:
+        limit: Maximum number of tasks to return
+        status_filter: Optional status to filter by
+
+    Returns:
+        List of task dicts
+    """
+    with _get_spotify_conn() as conn:
+        query = "SELECT * FROM download_tasks"
+        params = []
+        if status_filter:
+            query += " WHERE status = ?"
+            params.append(status_filter)
+        query += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+
+        cur = conn.execute(query, params)
+        rows = cur.fetchall()
+        return [dict(row) for row in rows]
+
+
+def delete_download_task(task_id: str) -> None:
+    """Delete a download task (and cascade its progress history)."""
+    with _get_spotify_conn() as conn:
+        conn.execute("DELETE FROM download_tasks WHERE task_id = ?;", (task_id,))
+        conn.commit()
+
+
+def cancel_download_task(task_id: str) -> None:
+    """Mark a task as cancelled."""
+    update_download_task(task_id, {"status": "cancelled"})
+
+
+# ==================== Progress Snapshot Functions ====================
+
+
+def add_progress_snapshot(
+    task_id: str,
+    percent: float,
+    current_track: str,
+    completed_tracks: int,
+    total_tracks: int,
+    errors: Optional[List[str]] = None,
+    timestamp: Optional[int] = None,
+) -> None:
+    """
+    Add a progress snapshot for a task.
+
+    Args:
+        task_id: Task identifier
+        percent: Progress percentage (0-100)
+        current_track: Currently downloading track name
+        completed_tracks: Number of tracks completed
+        total_tracks: Total tracks in playlist
+        errors: Optional list of error messages
+        timestamp: Unix timestamp (defaults to now)
+    """
+    now = int(datetime.now(timezone.utc).timestamp())
+    timestamp = timestamp or now
+    errors_json = json.dumps(errors or [])
+
+    with _get_spotify_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO progress_history (task_id, timestamp, percent, current_track, completed_tracks, total_tracks, errors)
+            VALUES (?, ?, ?, ?, ?, ?, ?);
+            """,
+            (
+                task_id,
+                timestamp,
+                percent,
+                current_track,
+                completed_tracks,
+                total_tracks,
+                errors_json,
+            ),
+        )
+        conn.commit()
+
+
+def get_progress_history(task_id: str) -> List[Dict[str, Any]]:
+    """Retrieve all progress snapshots for a task, ordered by timestamp ascending."""
+    with _get_spotify_conn() as conn:
+        cur = conn.execute(
+            "SELECT * FROM progress_history WHERE task_id = ? ORDER BY timestamp ASC;",
+            (task_id,),
+        )
+        rows = cur.fetchall()
+        snapshots = []
+        for row in rows:
+            snap = dict(row)
+            # Parse errors JSON
+            try:
+                snap["errors"] = json.loads(snap.get("errors", "[]"))
+            except json.JSONDecodeError:
+                snap["errors"] = []
+            snapshots.append(snap)
+        return snapshots
+
+
+def clear_progress_history(task_id: str) -> None:
+    """Delete all progress snapshots for a task."""
+    with _get_spotify_conn() as conn:
+        conn.execute(
+            "DELETE FROM progress_history WHERE task_id = ?;",
+            (task_id,),
+        )
+        conn.commit()

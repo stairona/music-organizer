@@ -4,6 +4,7 @@ Data models for the Music Organizer API.
 
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any, Literal
+from datetime import datetime
 
 
 class AnalyzeRequest(BaseModel):
@@ -101,4 +102,67 @@ class UndoResult(BaseModel):
     """Result of an undo operation."""
     reverted: int
     failed: int
+    errors: List[str] = Field(default_factory=list)
+
+
+# --- Spotify Integration Models ---
+
+
+class OAuthTokens(BaseModel):
+    """Spotify OAuth tokens for API authentication."""
+    access_token: str
+    refresh_token: str
+    expires_at: int  # Unix timestamp
+
+
+class SpotifyPlaylist(BaseModel):
+    """Spotify playlist metadata (read-only)."""
+    id: str
+    name: str
+    owner: str
+    track_count: int
+    snapshot_id: Optional[str] = None
+
+
+class SpotifyTrack(BaseModel):
+    """Spotify track metadata."""
+    id: str
+    name: str
+    artist: str
+    album: str
+    duration_ms: int
+    track_number: Optional[int] = None
+    disc_number: Optional[int] = 1
+    isrc: Optional[str] = None
+    external_urls: Optional[Dict[str, str]] = None
+
+
+class DownloadTask(BaseModel):
+    """Track a playlist download operation."""
+    task_id: str
+    playlist_id: str
+    playlist_name: str
+    destination: str
+    status: Literal["queued", "downloading", "completed", "failed", "cancelled"]
+    started_at: Optional[int] = None  # Unix timestamp
+    finished_at: Optional[int] = None  # Unix timestamp
+    total_tracks: int
+    completed_tracks: int = 0
+    auto_organize: bool = True
+    organize_run_id: Optional[str] = None
+    error_message: Optional[str] = None
+    spotdl_pid: Optional[int] = None
+    progress_percent: float = 0.0
+    current_track: Optional[str] = None
+    created_at: Optional[int] = None  # Unix timestamp; auto-filled by store if None
+
+
+class ProgressSnapshot(BaseModel):
+    """Historical progress record for a download task."""
+    task_id: str
+    timestamp: int  # Unix timestamp
+    percent: float
+    current_track: str
+    completed_tracks: int
+    total_tracks: int
     errors: List[str] = Field(default_factory=list)
