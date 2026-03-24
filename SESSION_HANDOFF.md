@@ -8,7 +8,7 @@
 ## 1. Quick Context
 
 **Project**: `music-organizer` — DJ-grade CLI tool for organizing music libraries by genre
-**Location**: `/Users/nicolasaguirre/Development/light-projects/music-organizer`
+**Location**: `/Users/nicolasaguirre/zprojects/music-organizer`
 **Branch**: `feature/spotify-v2.1-phases-4-7` (Phase 4 complete; v2.1 Spotify integration in progress)
 **Remote**: `github.com/stairona/music-organizer`
 **Python**: 3.13.5 via Anaconda (`/opt/anaconda3/bin/python`)
