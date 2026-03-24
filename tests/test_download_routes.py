@@ -105,3 +105,40 @@ class TestCancelDownload:
         response = client.post("/api/v1/downloads/t1/cancel")
         assert response.status_code == 200
         assert response.json()["cancelled"] is False
+
+
+class TestListDownloads:
+    """Tests for GET /downloads."""
+
+    @patch("app.backend.routes.list_download_tasks")
+    def test_list_downloads_returns_array(self, mock_list):
+        mock_list.return_value = [
+            {
+                "task_id": "t1",
+                "playlist_id": "pl1",
+                "playlist_name": "Test Playlist",
+                "status": "completed",
+                "progress_percent": 100.0,
+                "created_at": 1234567890,
+            }
+        ]
+        response = client.get("/api/v1/downloads")
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) == 1
+        assert data[0]["task_id"] == "t1"
+
+    @patch("app.backend.routes.list_download_tasks")
+    def test_list_downloads_respects_limit(self, mock_list):
+        mock_list.return_value = [{"task_id": "t1"}]
+        response = client.get("/api/v1/downloads?limit=10")
+        assert response.status_code == 200
+        mock_list.assert_called_once_with(limit=10, status_filter=None)
+
+    @patch("app.backend.routes.list_download_tasks")
+    def test_list_downloads_respects_status_filter(self, mock_list):
+        mock_list.return_value = []
+        response = client.get("/api/v1/downloads?status=completed")
+        assert response.status_code == 200
+        mock_list.assert_called_once_with(limit=50, status_filter="completed")

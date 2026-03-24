@@ -15,6 +15,7 @@ from ..store import (
     add_progress_snapshot,
     get_download_task,
     get_progress_history,
+    list_download_tasks,
 )
 from ..models import (
     AnalyzeRequest,
@@ -360,4 +361,27 @@ async def cancel_download_endpoint(task_id: str):
         return {"cancelled": success}
     except Exception as e:
         logger.exception(f"Failed to cancel {task_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/downloads")
+async def list_downloads(
+    limit: int = 50,
+    status: Optional[str] = None
+):
+    """
+    List download tasks (history).
+
+    Args:
+        limit: Maximum number of tasks to return (default 50)
+        status: Optional filter by status ('queued', 'downloading', 'completed', 'failed', 'cancelled')
+
+    Returns:
+        List of download task dicts (most recent first)
+    """
+    try:
+        tasks = list_download_tasks(limit=limit, status_filter=status)
+        return tasks
+    except Exception as e:
+        logger.exception(f"Failed to list downloads")
         raise HTTPException(status_code=500, detail=str(e))
