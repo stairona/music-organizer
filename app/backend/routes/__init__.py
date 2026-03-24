@@ -180,6 +180,20 @@ async def spotify_status():
         return {"connected": False}
 
 
+@router.post("/auth/logout")
+async def logout():
+    """
+    Log out from Spotify by clearing stored OAuth tokens.
+    """
+    try:
+        auth_service.logout()
+        return {"success": True}
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Logout failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # --- Spotify Playlist Routes ---
 
 @router.get("/spotify/playlists")
