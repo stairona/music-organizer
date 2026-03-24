@@ -93,16 +93,14 @@ class TestCancelDownload:
     """Tests for POST /downloads/{task_id}/cancel."""
 
     @patch("app.backend.routes.spotdl_service.cancel_download")
-    @pytest.mark.asyncio
-    async def test_cancel_returns_true(self, mock_cancel):
+    def test_cancel_returns_true(self, mock_cancel):
         mock_cancel.return_value = True
         response = client.post("/api/v1/downloads/t1/cancel")
         assert response.status_code == 200
         assert response.json()["cancelled"] is True
 
     @patch("app.backend.routes.spotdl_service.cancel_download")
-    @pytest.mark.asyncio
-    async def test_cancel_returns_false_if_not_running(self, mock_cancel):
+    def test_cancel_returns_false_if_not_running(self, mock_cancel):
         mock_cancel.return_value = False
         response = client.post("/api/v1/downloads/t1/cancel")
         assert response.status_code == 200
