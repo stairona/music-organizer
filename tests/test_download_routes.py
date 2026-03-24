@@ -15,7 +15,7 @@ class TestStartDownload:
 
     @patch("app.backend.routes.spotdl_service.download_playlist")
     @patch("app.backend.routes.spotify_service.get_playlist_info")
-    @patch("app.backend.routes.spotdl_service.create_download_task")
+    @patch("app.backend.routes.create_download_task")
     @patch("app.backend.routes.auth_service.get_valid_access_token")
     def test_start_download_returns_task_id(
         self, mock_token, mock_create_task, mock_get_info, mock_download

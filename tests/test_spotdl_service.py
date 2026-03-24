@@ -67,10 +67,7 @@ class TestDownloadPlaylist:
         with patch(
             "app.backend.services.spotdl_service.get_playlist_info",
             return_value={"name": "Test Playlist", "track_count": 10, "snapshot_id": "abc"},
-        ) as mock_info, \
-        patch(
-            "app.backend.services.spotdl_service.create_download_task"
-        ) as mock_create, \
+        ), \
         patch(
             "app.backend.services.spotdl_service.update_download_task"
         ) as mock_update, \
@@ -78,10 +75,12 @@ class TestDownloadPlaylist:
             "app.backend.services.spotdl_service.add_progress_snapshot"
         ) as mock_snapshot, \
         patch(
-            "app.backend.services.spotify_service.get_playlist_info",  # called inside download_playlist again? Actually get_playlist_info used directly, so patch that
+            "app.backend.services.spotdl_service.get_progress_history",
+            return_value=[]
+        ) as mock_history, \
+        patch(
+            "app.backend.services.spotify_service.get_playlist_info",  # in case it's called again
         ):
-            # Actually get_playlist_info is called inside download_playlist, so patch that directly
-            # Already done above
             # Mock organize_service
             with patch(
                 "app.backend.services.spotdl_service.organize_service"
@@ -104,13 +103,6 @@ class TestDownloadPlaylist:
                 mock_proc.wait = AsyncMock(return_value=0)  # exit code 0
                 mock_subprocess.return_value = mock_proc
 
-                # capture create task call
-                created_task_id = None
-                def capture_create(**kwargs):
-                    nonlocal created_task_id
-                    created_task_id = kwargs["task_id"]
-                mock_create.side_effect = capture_create
-
                 # Run the async function synchronously
                 asyncio.run(download_playlist(
                     playlist_id=playlist_id,
@@ -118,16 +110,13 @@ class TestDownloadPlaylist:
                     task_id=task_id,
                 ))
 
-                # Verify create_download_task called
-                assert mock_create.call_count == 1
-                assert created_task_id == task_id
+                # Verify update_download_task was called multiple times
+                assert mock_update.call_count >= 2  # at least: start (downloading) and complete
 
-                # Verify updates: should include status downloading and completed
-                update_calls = [c for c in mock_update.call_args_list]
-                # Find status updates
-                statuses = [c[1].get("status") for c in update_calls if c[1]]
-                assert "downloading" in statuses
-                assert "completed" in statuses
+                # Extract the updates dict (second positional arg) from each call and get status
+                status_calls = [args[1].get("status") for args, kwargs in mock_update.call_args_list if len(args) >= 2 and "status" in args[1]]
+                assert "downloading" in status_calls
+                assert "completed" in status_calls
 
                 # Verify snapshots added
                 assert mock_snapshot.call_count >= 2
@@ -149,14 +138,15 @@ class TestDownloadPlaylist:
         ) as mock_subprocess:
             mock_proc = MagicMock()
             mock_proc.pid = 12345
-            mock_proc.stdout.read = AsyncMock(return_value=b"Error\n")
+            # Simulate some output then EOF to avoid infinite loop in _read_stream
+            mock_proc.stdout.read = AsyncMock(side_effect=[b"Error\n", b""])
             mock_proc.wait = AsyncMock(return_value=1)  # non-zero
             mock_subprocess.return_value = mock_proc
 
             asyncio.run(download_playlist("pl", "/tmp", task_id, auto_organize=False))
 
             # Check final status is failed
-            statuses = [c[1].get("status") for c in mock_update.call_args_list if c[1]]
+            statuses = [args[1].get("status") for args, kwargs in mock_update.call_args_list if len(args) >= 2 and "status" in args[1]]
             assert "failed" in statuses
 
     def test_cancel_download(self):
@@ -168,11 +158,8 @@ class TestDownloadPlaylist:
         # Because cancel_download looks up _running_processes[task_id]
         mock_proc = MagicMock()
         mock_proc.pid = 9999
-
-        async def fake_terminate():
-            pass
-
-        mock_proc.terminate = fake_terminate
+        mock_proc.terminate = MagicMock()  # terminate is synchronous
+        mock_proc.wait = AsyncMock(return_value=0)  # wait is async, returns exit code
 
         # Insert into registry manually
         _running_processes[task_id] = mock_proc

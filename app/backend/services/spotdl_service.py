@@ -16,8 +16,10 @@ from ..store import (
     update_download_task,
     add_progress_snapshot,
     get_download_task,
+    get_progress_history,
 )
 from .spotify_service import get_playlist_info
+from . import organize_service
 
 logger = logging.getLogger(__name__)
 
@@ -240,7 +242,6 @@ async def download_playlist(
         # If auto_organize, trigger organize_service
         if returncode == 0 and auto_organize:
             try:
-                from . import organize_service
                 logger.info(f"Auto-organizing downloaded files in {destination}")
                 # Use conservative options: general level, default profile
                 result = organize_service(

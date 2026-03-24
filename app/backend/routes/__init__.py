@@ -9,6 +9,13 @@ import uuid
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Body
 from ..services import analyze_service, organize_service, auth_service, spotify_service, spotdl_service
+from ..store import (
+    create_download_task,
+    update_download_task,
+    add_progress_snapshot,
+    get_download_task,
+    get_progress_history,
+)
 from ..models import (
     AnalyzeRequest,
     OrganizeRequest,
