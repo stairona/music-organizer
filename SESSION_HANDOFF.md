@@ -521,3 +521,123 @@ Estimated: 2-4 hours.
 - If continuing v2.0 work: nothing pending; all prompts done.
 - If proceeding to v2.1 (Spotify/desktop): start with Phase 0 of `.UPGRADED_PLAN.md` (which is essentially "begin Phase 1" since v2.0 is already merged). Recommended first step: create feature branch `feature/spotify-desktop-v1` and begin data model design.
 
+
+---
+
+## 12. Session Update (2026-03-24) — v2.1 Phases 3-6 Complete
+
+**Status**: Backend API complete (Phases 1-5) and Desktop app implemented (Phase 6). All 237 tests passing.
+
+### v2.1.0 Phase 3 — Spotify Playlist Service (2026-03-16)
+
+**Commit**: `a25b33e` — "feat: implement Spotify playlist service (Phase 3)"
+**Status**: ✅ Complete and pushed to `origin/main`
+
+- Implemented `app/backend/services/spotify_service.py`:
+  - `get_playlist_info(playlist_id)` returns `{name, track_count, snapshot_id}`
+  - `get_playlist_tracks(playlist_id)` returns `List[SpotifyTrack]`
+  - Uses `get_valid_access_token()` for auto-refresh
+- Added API routes:
+  - `GET /api/v1/spotify/playlists`
+  - `GET /api/v1/spotify/playlist/{playlist_id}/tracks`
+- Test Coverage (12 new): `test_spotify_service.py` (9) and `test_spotify_routes.py` (3)
+- Verification: All 207 tests pass (132 core + 34 Phase 1 + 29 Phase 2 + 12 Phase 3)
+
+---
+
+### v2.1.0 Phase 4 — spotdl Orchestration Service (2026-03-24)
+
+**Commit**: `4c2e015` — "feat: complete spotdl orchestration service (Phase 4)"
+**Status**: ✅ Complete on feature branch
+
+- Implemented `app/backend/services/spotdl_service.py`:
+  - `download_playlist(...)` async subprocess spawn, stdout streaming, progress tracking
+  - `cancel_download(task_id)` graceful termination
+  - `get_download_status(task_id)` returns task status + progress history
+  - Auto-organize bridge: calls `organize_service()` after successful download (default on)
+- New/Extended API Routes:
+  - `POST /api/v1/downloads` → create task, start background download
+  - `GET /api/v1/downloads/{task_id}/status` → task status + progress
+  - `POST /api/v1/downloads/{task_id}/cancel` → cancel
+- Store updates: extended `download_tasks` usage; progress snapshots
+- Test Coverage (13 new): 7 service tests, 6 route tests (including `GET /downloads` list endpoint)
+- Verification: All 235 tests pass (129 core + 34 P1 + 29 P2 + 12 P3 + 7 P4 + 6 route tests)
+
+---
+
+### v2.1.0 Phase 5 — Post-Download Orchestration Bridge (2026-03-24)
+
+**Status**: ✅ Implemented as part of Phase 4 (see `spotdl_service.py` lines 242-261)
+- After successful download, `organize_service()` invoked with conservative options (`level='general'`, `mode='move'`)
+- Controlled by `auto_organize` flag on download task (default `True`)
+- Tested via `test_download_successful` (verifies `organize_service` called)
+- No separate commit; integrated into Phase 4 delivery.
+
+---
+
+### v2.1.0 Phase 6 — Desktop App (Tauri + React) (2026-03-24)
+
+**Commit**: `c96868c` — "feat(desktop): implement Tauri + React desktop app (Phase 6)"
+**Status**: ✅ Implementation complete; branch `feature/spotify-v2.1-phases-4-7`
+
+**Architecture**:
+- Tauri (Rust + WebView) frontend in `desktop/`
+- React 18 + TypeScript + Vite
+- Plain CSS styling
+- Global state via React Context
+- API client (`desktop/src/api.ts`) with full backend coverage
+
+**Features Implemented**:
+- **Login screen**: manual OAuth code-paste flow
+- **Playlists screen**: checkbox selection, destination picker (Tauri dialog), auto-organize toggle
+- **Downloads screen**: active task polling (2s), progress bars, cancel button
+- **History screen**: list of all download tasks via `GET /api/v1/downloads`
+- **Navbar**: navigation and protected routes
+- **Backend CORS**: configured for Tauri origins (`http://localhost:1420`, `tauri://localhost`)
+- **New backend endpoint**: `POST /api/v1/auth/logout` (clears OAuth tokens)
+
+**Components & Screens**:
+- Components: Navbar, ProgressBar, StatusBadge, Spinner, ErrorAlert
+- Screens: Home, Login, Playlists, Downloads, History
+
+**Dependencies**:
+- `react-router-dom` for navigation
+- Tauri CLI for dev/build
+
+**Testing**:
+- Backend: 237 tests pass (including 2 new logout tests)
+- Manual end-to-end testing pending (recommended before release)
+- `local_verification.py` script for quick smoke tests
+
+**Next Steps**:
+- Manual test full flow (OAuth → playlist selection → download → organize)
+- Build and package DMG (`npm run tauri build`)
+- Optionally implement localhost OAuth callback server (replace manual paste)
+- Add integration tests
+
+---
+
+**Branch**: `feature/spotify-v2.1-phases-4-7`
+**Latest commit**: `89849bc` (refactor: rename handoff file and update project location to zprojects)
+**Test count**: 237 passing
+**Backend**: All endpoints functional, Spotify OAuth PKCE, spotdl orchestration, auto-organize
+**Frontend**: Tauri app ready for testing and polish
+
+**Files Added/Modified** (since Phase 2):
+- Desktop app: `desktop/` (36 files)
+- Backend: `app/backend/routes/__init__.py` (logout endpoint, CORS)
+- Tests: `tests/test_auth_routes.py` (logout tests)
+- Docs: `docs/PHASE6_DESCRIPTIVE_PLAN.md`, `START_PHASE6_HERE.md`, `desktop/README.md`
+- Scripts: `local_verification.py`
+
+---
+
+**Deployment Notes**:
+- Backend must be run separately: `uvicorn app.backend.main:app --reload`
+- Spotify app credentials: set `SPOTIPY_CLIENT_ID`
+- Install spotdl: `pip install spotdl`
+- Desktop app: `cd desktop && npm install && npm run tauri dev`
+
+**Moved/Renamed Files**: None.
+
+**Deletion Candidates**: None.

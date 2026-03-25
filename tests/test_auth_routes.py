@@ -148,3 +148,19 @@ class TestSpotifyStatus:
         response = client.get("/api/v1/auth/spotify/status")
         assert response.status_code == 200
         assert response.json()["connected"] is False
+
+
+class TestLogout:
+    """Tests for POST /auth/logout."""
+
+    @patch("app.backend.routes.auth_service.logout")
+    def test_logout_clears_tokens(self, mock_logout):
+        response = client.post("/api/v1/auth/logout")
+        assert response.status_code == 200
+        assert response.json() == {"success": True}
+        mock_logout.assert_called_once()
+
+    def test_logout_handles_errors(self):
+        # logout should succeed even if no tokens were stored
+        response = client.post("/api/v1/auth/logout")
+        assert response.status_code == 200
