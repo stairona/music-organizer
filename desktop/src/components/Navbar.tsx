@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
+import { MusicIcon } from './Icons';
 import './Navbar.css';
 
 export function Navbar() {
   return (
     <nav className="navbar">
       <div className="navbar-brand">
-        <span role="img" aria-label="music">🎵</span> Music Organizer
+        <MusicIcon className="nav-icon" /> Music Organizer
       </div>
       <div className="navbar-links">
         <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''}>

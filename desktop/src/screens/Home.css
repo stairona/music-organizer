@@ -1,94 +1,76 @@
 .home {
-  padding: 2rem;
+  padding: var(--space-xl);
   max-width: 1200px;
   margin: 0 auto;
 }
 
 .home h1 {
   font-size: 2.5rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-sm);
 }
 
 .subtitle {
-  color: #666;
-  margin-bottom: 2rem;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-xl);
 }
 
 .card {
-  background: white;
-  border-radius: 8px;
-  padding: 2rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  margin-bottom: 2rem;
+  background-color: var(--color-card-bg);
+  border-radius: 12px;
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-md);
+  margin-bottom: var(--space-xl);
 }
 
 .card h2 {
   margin-top: 0;
-  margin-bottom: 1rem;
-}
-
-.btn-primary {
-  display: inline-block;
-  background: #646cff;
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 6px;
-  text-decoration: none;
-  font-weight: bold;
-}
-
-.btn-primary:hover {
-  background: #5a62e0;
-}
-
-.btn-secondary {
-  display: inline-block;
-  background: #6c757d;
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 6px;
-  text-decoration: none;
-  font-weight: bold;
-  margin-left: 1rem;
-}
-
-.btn-secondary:hover {
-  background: #5a6268;
+  margin-bottom: var(--space-md);
+  color: var(--color-text);
 }
 
 .quick-actions {
   display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+  flex-wrap: wrap;
 }
 
 .features {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-top: 2rem;
+  gap: var(--space-lg);
+  margin-top: var(--space-xl);
 }
 
 .feature {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  background-color: var(--color-card-bg);
+  padding: var(--space-lg);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
   text-align: center;
+  transition: all 200ms ease;
 }
 
-.feature span {
-  font-size: 2.5rem;
-  display: block;
-  margin-bottom: 0.5rem;
+.feature:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.feature-icon {
+  width: 3rem;
+  height: 3rem;
+  color: var(--color-cta);
+  margin-bottom: var(--space-sm);
+  display: inline-block;
 }
 
 .feature h3 {
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 var(--space-sm) 0;
+  color: var(--color-text);
 }
 
 .feature p {
   margin: 0;
-  color: #666;
-  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
 }

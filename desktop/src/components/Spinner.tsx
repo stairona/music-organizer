@@ -5,8 +5,8 @@ export function Spinner({ size = 'medium' }: { size?: 'small' | 'medium' | 'larg
       <style>{`.spinner {
   width: ${scale};
   height: ${scale};
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #646cff;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top: 3px solid var(--color-cta);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }}

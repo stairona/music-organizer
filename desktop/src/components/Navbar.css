@@ -2,41 +2,48 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
-  background: #1a1a1a;
-  color: white;
+  padding: var(--space-md) var(--space-xl);
+  background-color: var(--color-primary);
+  color: var(--color-text);
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .navbar-brand {
   font-size: 1.25rem;
   font-weight: bold;
+  font-family: var(--font-heading);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.nav-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--color-cta);
 }
 
 .navbar-links {
   display: flex;
-  gap: 1.5rem;
+  gap: var(--space-lg);
   align-items: center;
 }
 
 .navbar-links a {
-  color: #ccc;
+  color: var(--color-text-muted);
   text-decoration: none;
+  transition: color 200ms ease;
+  font-weight: 500;
+}
+
+.navbar-links a:hover {
+  color: var(--color-text);
 }
 
 .navbar-links a.active {
-  color: #646cff;
-  font-weight: bold;
-}
-
-.logout-btn {
-  background: #dc3545;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.logout-btn:hover {
-  background: #c82333;
+  color: var(--color-cta);
+  font-weight: 600;
 }

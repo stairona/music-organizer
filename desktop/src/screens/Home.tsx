@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../store';
+import { DownloadIcon, OrganizeIcon, ChartIcon } from '../components/Icons';
 import './Home.css';
 
 export function Home() {
@@ -32,17 +33,17 @@ export function Home() {
 
       <div className="features">
         <div className="feature">
-          <span role="img" aria-label="download">⬇️</span>
+          <DownloadIcon className="feature-icon" />
           <h3>Download</h3>
           <p>Paste a Spotify playlist URL and download via spotdl</p>
         </div>
         <div className="feature">
-          <span role="img" aria-label="organize">📁</span>
+          <OrganizeIcon className="feature-icon" />
           <h3>Organize</h3>
           <p>Sort your music library by genre</p>
         </div>
         <div className="feature">
-          <span role="img" aria-label="track">📊</span>
+          <ChartIcon className="feature-icon" />
           <h3>Track</h3>
           <p>Monitor download progress in real-time</p>
         </div>

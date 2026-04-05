@@ -109,7 +109,7 @@ export function Organize() {
               readOnly
               disabled={organizing}
             />
-            <button onClick={pickSource} type="button" disabled={organizing}>
+            <button onClick={pickSource} type="button" disabled={organizing} className="btn-secondary">
               Browse...
             </button>
           </div>
@@ -126,7 +126,7 @@ export function Organize() {
               readOnly
               disabled={organizing}
             />
-            <button onClick={pickDestination} type="button" disabled={organizing}>
+            <button onClick={pickDestination} type="button" disabled={organizing} className="btn-secondary">
               Browse...
             </button>
           </div>
@@ -211,7 +211,7 @@ export function Organize() {
         <button
           onClick={handleOrganize}
           disabled={organizing || !source.trim()}
-          className="btn-primary large"
+          className="btn-primary btn-lg btn-block"
         >
           {organizing ? <Spinner size="small" /> : 'Organize'}
         </button>

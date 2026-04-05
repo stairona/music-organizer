@@ -108,7 +108,7 @@ export function Download() {
               readOnly
               disabled={downloading}
             />
-            <button onClick={pickDestination} type="button" disabled={downloading}>
+            <button onClick={pickDestination} type="button" disabled={downloading} className="btn-secondary">
               Browse...
             </button>
           </div>
@@ -117,7 +117,7 @@ export function Download() {
         <button
           onClick={startDownload}
           disabled={downloading || !playlistUrl.trim() || !destination.trim()}
-          className="btn-primary large"
+          className="btn-primary btn-lg btn-block"
         >
           {downloading ? <Spinner size="small" /> : 'Start Download'}
         </button>
