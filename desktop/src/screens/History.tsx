@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useApp } from '../store';
 import { listDownloads } from '../api';
 import { Spinner } from '../components';
 import type { DownloadTask } from '../types';
 import './History.css';
 
 export function History() {
-  const { refreshTasks } = useApp();
   const [tasks, setTasks] = useState<DownloadTask[]>([]);
   const [loading, setLoading] = useState(true);
 

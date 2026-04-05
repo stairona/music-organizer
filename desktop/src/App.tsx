@@ -1,54 +1,23 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { AppProvider, useApp } from './store';
+import { Routes, Route } from 'react-router-dom';
+import { AppProvider } from './store';
 import { Navbar } from './components/Navbar';
 import { Home } from './screens/Home';
-import { Login } from './screens/Login';
-import { Playlists } from './screens/Playlists';
+import { Download } from './screens/Download';
 import { Downloads } from './screens/Downloads';
 import { History } from './screens/History';
-
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useApp();
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  return <>{children}</>;
-}
+import { Organize } from './screens/Organize';
 
 function AppRoutes() {
-  const { isAuthenticated } = useApp();
-
   return (
     <div className="app">
-      {isAuthenticated && <Navbar />}
+      <Navbar />
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/playlists"
-            element={
-              <ProtectedRoute>
-                <Playlists />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/downloads"
-            element={
-              <ProtectedRoute>
-                <Downloads />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/history"
-            element={
-              <ProtectedRoute>
-                <History />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/download" element={<Download />} />
+          <Route path="/downloads" element={<Downloads />} />
+          <Route path="/history" element={<History />} />
+          <Route path="/organize" element={<Organize />} />
         </Routes>
       </main>
     </div>

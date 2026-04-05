@@ -1,22 +1,7 @@
 import { NavLink } from 'react-router-dom';
-import { useApp } from '../store';
 import './Navbar.css';
 
 export function Navbar() {
-  const { isAuthenticated, logout } = useApp();
-
-  const handleLogout = async () => {
-    try {
-      await fetch('http://localhost:8000/api/v1/auth/logout', {
-        method: 'POST',
-      });
-    } catch (err) {
-      console.error('Logout failed:', err);
-    } finally {
-      window.location.href = '/login';
-    }
-  };
-
   return (
     <nav className="navbar">
       <div className="navbar-brand">
@@ -26,20 +11,18 @@ export function Navbar() {
         <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''}>
           Home
         </NavLink>
-        <NavLink to="/playlists" className={({ isActive }) => isActive ? 'active' : ''}>
-          Playlists
+        <NavLink to="/download" className={({ isActive }) => isActive ? 'active' : ''}>
+          Download
         </NavLink>
         <NavLink to="/downloads" className={({ isActive }) => isActive ? 'active' : ''}>
-          Downloads
+          Active
+        </NavLink>
+        <NavLink to="/organize" className={({ isActive }) => isActive ? 'active' : ''}>
+          Organize
         </NavLink>
         <NavLink to="/history" className={({ isActive }) => isActive ? 'active' : ''}>
           History
         </NavLink>
-        {isAuthenticated && (
-          <button onClick={handleLogout} className="logout-btn">
-            Logout
-          </button>
-        )}
       </div>
     </nav>
   );

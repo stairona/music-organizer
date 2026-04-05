@@ -1,36 +1,26 @@
 {
+  "$schema": "https://tauri.app/schema.json",
+  "identifier": "com.music-organizer.app",
+  "productName": "Music Organizer",
+  "version": "2.1.0",
   "build": {
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build",
-    "devPath": "http://localhost:1420",
-    "distDir": "../dist"
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420"
   },
-  "package": {
-    "productName": "Music Organizer",
-    "version": "2.1.0"
-  },
-  "tauri": {
-    "application": {
-      "windows": [
-        {
-          "title": "Music Organizer",
-          "width": 1200,
-          "height": 800,
-          "resizable": true
-        }
-      ]
-    },
-    "allowlist": {
-      "dialog": {
-        "all": true
-      },
-      "shell": {
-        "all": true,
-        "open": true
-      }
-    },
-    "security": {
-      "csp": "default-src 'self'; connect-src http://localhost:*; script-src 'self' 'unsafe-inline'"
+  "plugins": {
+    "dialog": null,
+    "shell": {
+      "open": true
     }
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Music Organizer",
+        "width": 1200,
+        "height": 800,
+        "resizable": true
+      }
+    ]
   }
 }

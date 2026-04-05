@@ -1,9 +1,6 @@
 import type {
-  OAuthLoginResponse,
-  SpotifyPlaylist,
-  SpotifyTrack,
   DownloadTask,
-  AuthStatus,
+  OrganizeResult,
 } from './types';
 
 const API_BASE = 'http://localhost:8000/api/v1';
@@ -28,42 +25,12 @@ async function fetchJson(
   return response.json();
 }
 
-// Auth endpoints
-export async function getAuthLoginUrl(): Promise<OAuthLoginResponse> {
-  const res = await fetchJson(`${API_BASE}/auth/spotify/login`);
-  return res;
-}
-
-export async function exchangeAuthCode(
-  code: string,
-  codeVerifier: string
-): Promise<{ success: boolean; access_token?: string }> {
-  return fetchJson(`${API_BASE}/auth/spotify/callback`, {
-    method: 'POST',
-    body: JSON.stringify({ code, code_verifier: codeVerifier }),
-  });
-}
-
-export async function getAuthStatus(): Promise<AuthStatus> {
-  return fetchJson(`${API_BASE}/auth/spotify/status`);
-}
-
-// Spotify endpoints
-export async function getPlaylists(): Promise<SpotifyPlaylist[]> {
-  return fetchJson(`${API_BASE}/spotify/playlists`);
-}
-
-export async function getPlaylistTracks(
-  playlistId: string
-): Promise<SpotifyTrack[]> {
-  return fetchJson(`${API_BASE}/spotify/playlist/${playlistId}/tracks`);
-}
+// None needed
 
 // Download endpoints
 export interface CreateDownloadRequest {
-  playlist_id: string;
+  playlist_url: string;  // Spotify playlist URL or ID
   destination: string;
-  auto_organize?: boolean;
 }
 
 export interface CreateDownloadResponse {
@@ -99,6 +66,30 @@ export async function listDownloads(
   const params = new URLSearchParams({ limit: String(limit) });
   if (status) params.append('status', status);
   return fetchJson(`${API_BASE}/downloads?${params.toString()}`);
+}
+
+// Organize endpoint
+export interface OrganizeRequest {
+  source: string;
+  destination?: string;
+  mode?: 'copy' | 'move';
+  level?: string;
+  profile?: string;
+  dry_run?: boolean;
+  skip_existing?: boolean;
+  skip_unknown_only?: boolean;
+  on_collision?: string;
+  limit?: number;
+  exclude_dir?: string[];
+}
+
+export async function organizeFiles(
+  payload: OrganizeRequest
+): Promise<OrganizeResult> {
+  return fetchJson(`${API_BASE}/organize`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 // Health check

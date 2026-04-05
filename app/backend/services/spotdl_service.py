@@ -18,7 +18,6 @@ from ..store import (
     get_download_task,
     get_progress_history,
 )
-from .spotify_service import get_playlist_info
 from . import organize_service
 
 logger = logging.getLogger(__name__)
@@ -146,17 +145,11 @@ async def download_playlist(
     # Ensure destination exists
     os.makedirs(destination, exist_ok=True)
 
-    # Get playlist metadata for total tracks
-    try:
-        info = get_playlist_info(playlist_id)
-        playlist_name = info.get("name", "Unknown Playlist")
-        total_tracks = info.get("track_count", 0)
-    except Exception as e:
-        logger.warning(f"Failed to fetch playlist info: {e}")
-        playlist_name = "Unknown Playlist"
-        total_tracks = 0
+    # No Spotify API integration; use placeholder values
+    playlist_name = "Unknown Playlist"
+    total_tracks = 0
 
-    # Update task with playlist name and total tracks (if previously unknown)
+    # Update task with placeholder info
     try:
         update_download_task(task_id, {
             "playlist_name": playlist_name,
@@ -167,7 +160,7 @@ async def download_playlist(
     except Exception as e:
         logger.error(f"Failed to update task start: {e}")
 
-    # Construct spotdl command
+    # Construct spotdl command using the playlist ID (spotdl accepts URL or ID)
     playlist_url = f"https://open.spotify.com/playlist/{playlist_id}"
     cmd = [
         "spotdl",

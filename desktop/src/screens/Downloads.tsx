@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../store';
 import { getDownloadStatus, cancelDownload } from '../api';
-import { Spinner, ProgressBar, StatusBadge, ErrorAlert } from '../components';
-import type { DownloadTask } from '../types';
+import { ProgressBar, StatusBadge, ErrorAlert } from '../components';
 import './Downloads.css';
 
 export function Downloads() {
   const { activeTasks, updateTask } = useApp();
-  const [refreshing, setRefreshing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const refreshTask = async (taskId: string) => {

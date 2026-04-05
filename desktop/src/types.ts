@@ -1,29 +1,6 @@
 // API Response Types
 
-export interface OAuthLoginResponse {
-  auth_url: string;
-  state: string;
-  code_verifier: string;
-}
-
-export interface SpotifyPlaylist {
-  id: string;
-  name: string;
-  owner: string;
-  track_count: number;
-  snapshot_id?: string;
-}
-
-export interface SpotifyTrack {
-  id: string;
-  name: string;
-  artist: string;
-  album: string;
-  duration_ms: number;
-  track_number?: number;
-  disc_number?: number;
-  isrc?: string;
-}
+// Removed Spotify auth and playlist types (no longer used)
 
 export interface DownloadTask {
   task_id: string;
@@ -55,6 +32,24 @@ export interface ProgressSnapshot {
   errors?: string[];
 }
 
-export interface AuthStatus {
-  connected: boolean;
+// Organize result (matches backend OrganizeResult)
+export interface OrganizeResult {
+  success: boolean;
+  summary: {
+    total: number;
+    processed: number;
+    moved_or_copied: number;
+    unknown_count: number;
+    reason_counts: Record<string, number>;
+    specific_counter: Record<string, number>;
+    general_counter: Record<string, number>;
+    skipped_counts?: Record<string, number>;
+  };
+  unknown_diagnostics?: {
+    count: number;
+    sample_paths: string[];
+  };
+  csv_report_path?: string;
+  journal_saved?: boolean;
+  warnings?: string[];
 }

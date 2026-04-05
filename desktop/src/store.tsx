@@ -1,11 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import type { DownloadTask, AuthStatus } from './types';
+import type { DownloadTask } from './types';
 import * as api from './api';
 
 interface AppState {
-  isAuthenticated: boolean;
-  setIsAuthenticated: (value: boolean) => void;
-  checkAuth: () => Promise<void>;
   activeTasks: DownloadTask[];
   refreshTasks: () => Promise<void>;
   addTask: (task: DownloadTask) => void;
@@ -15,18 +12,7 @@ interface AppState {
 const AppContext = createContext<AppState | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTasks, setActiveTasks] = useState<DownloadTask[]>([]);
-
-  const checkAuth = async () => {
-    try {
-      const status: AuthStatus = await api.getAuthStatus();
-      setIsAuthenticated(status.connected);
-    } catch (err) {
-      console.error('Auth check failed:', err);
-      setIsAuthenticated(false);
-    }
-  };
 
   const refreshTasks = async () => {
     try {
@@ -47,11 +33,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  // Check auth on mount
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
   // Poll active tasks every 3 seconds if any are downloading
   useEffect(() => {
     const hasDownloading = activeTasks.some(
@@ -66,9 +47,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider
       value={{
-        isAuthenticated,
-        setIsAuthenticated,
-        checkAuth,
         activeTasks,
         refreshTasks,
         addTask,
