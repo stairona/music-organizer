@@ -93,47 +93,51 @@ export function Organize() {
 
   return (
     <div className="organize">
-      <h1>Organize Music Library</h1>
+      <h1>Organize Library</h1>
 
       <div className="organize-card">
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
         <div className="form-group">
-          <label>Source Folder (music to organize):</label>
+          <label htmlFor="source">Source Folder</label>
           <div className="destination-input">
             <input
+              id="source"
               type="text"
               value={source}
               onChange={(e) => setSource(e.target.value)}
-              placeholder="/path/to/music"
+              placeholder="Select music folder..."
               readOnly
               disabled={organizing}
             />
             <button onClick={pickSource} type="button" disabled={organizing} className="btn-secondary">
-              Browse...
+              Browse
             </button>
           </div>
+          <small>Folder containing your music files</small>
         </div>
 
         <div className="form-group">
-          <label>Destination Folder (optional - leave empty for in-place):</label>
+          <label htmlFor="destination">Destination Folder (optional)</label>
           <div className="destination-input">
             <input
+              id="destination"
               type="text"
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
-              placeholder="/path/to/organized (optional)"
+              placeholder="Leave empty for in-place organization"
               readOnly
               disabled={organizing}
             />
             <button onClick={pickDestination} type="button" disabled={organizing} className="btn-secondary">
-              Browse...
+              Browse
             </button>
           </div>
+          <small>Leave empty to organize files in place</small>
         </div>
 
         <div className="form-group">
-          <label>Mode:</label>
+          <label>Move or Copy</label>
           <div className="radio-group">
             <label>
               <input
@@ -144,7 +148,7 @@ export function Organize() {
                 onChange={() => setMode('move')}
                 disabled={organizing}
               />
-              Move (files are moved into genre folders)
+              Move — files are moved into genre folders
             </label>
             <label>
               <input
@@ -155,32 +159,34 @@ export function Organize() {
                 onChange={() => setMode('copy')}
                 disabled={organizing}
               />
-              Copy (files are copied, originals kept)
+              Copy — originals are kept in place
             </label>
           </div>
         </div>
 
         <div className="form-group">
-          <label>Genre Level:</label>
+          <label htmlFor="level">Genre Granularity</label>
           <select
+            id="level"
             value={level}
             onChange={(e) => setLevel(e.target.value)}
             disabled={organizing}
           >
-            <option value="general">General (Electronic, Rock, Classical, etc.)</option>
-            <option value="specific">Specific (House, Techno, Punk, etc.)</option>
+            <option value="general">General (Electronic, Rock, Classical...)</option>
+            <option value="specific">Specific (House, Techno, Punk, Jazz...)</option>
           </select>
         </div>
 
         <div className="form-group">
-          <label>Profile:</label>
+          <label htmlFor="profile">Organization Profile</label>
           <select
+            id="profile"
             value={profile}
             onChange={(e) => setProfile(e.target.value)}
             disabled={organizing}
           >
             <option value="default">Default</option>
-            <option value="cdj-safe">CDJ-safe (max 500 files per folder)</option>
+            <option value="cdj-safe">CDJ-Safe (max 500 files per folder)</option>
           </select>
         </div>
 
@@ -192,7 +198,7 @@ export function Organize() {
               onChange={(e) => setSkipExisting(e.target.checked)}
               disabled={organizing}
             />
-            Skip existing files (do not overwrite)
+            Skip existing files (prevent overwrites)
           </label>
         </div>
 
@@ -204,7 +210,7 @@ export function Organize() {
               onChange={(e) => setDryRun(e.target.checked)}
               disabled={organizing}
             />
-            Dry run (simulate without moving/copying)
+            Dry run — simulate without moving or copying
           </label>
         </div>
 
@@ -228,7 +234,7 @@ export function Organize() {
           </div>
           {result.warnings && result.warnings.length > 0 && (
             <div className="warnings">
-              <h4>Warnings:</h4>
+              <h4>Warnings</h4>
               <ul>
                 {result.warnings.map((w, i) => (
                   <li key={i}>{w}</li>
@@ -237,7 +243,7 @@ export function Organize() {
             </div>
           )}
           {result.csv_report_path && (
-            <p>CSV report saved to: {result.csv_report_path}</p>
+            <p className="csv-note">CSV report saved to: {result.csv_report_path}</p>
           )}
         </div>
       )}

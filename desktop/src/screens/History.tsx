@@ -34,7 +34,7 @@ export function History() {
       <button onClick={loadHistory} className="btn-refresh">Refresh</button>
 
       {tasks.length === 0 ? (
-        <p className="empty">No downloads yet.</p>
+        <p className="empty">No download history yet.</p>
       ) : (
         <table className="history-table">
           <thead>

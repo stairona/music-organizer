@@ -52,8 +52,8 @@ export function Downloads() {
 
       {activeCount === 0 ? (
         <div className="empty-state">
-          <p>No active downloads.</p>
-          <p><a href="/playlists">Go to Playlists</a> to start downloading.</p>
+          <p>No active downloads</p>
+          <p><a href="/download">Start a new download</a></p>
         </div>
       ) : (
         <div className="task-list">

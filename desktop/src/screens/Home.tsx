@@ -12,12 +12,12 @@ export function Home() {
 
   return (
     <div className="home">
-      <h1>Welcome to Music Organizer</h1>
-      <p className="subtitle">Download and organize your Spotify playlists</p>
+      <h1>Music Organizer</h1>
+      <p className="subtitle">Download and organize your Spotify playlists with ease</p>
 
       <div className="card">
         <h2>Get Started</h2>
-        <p>Paste a Spotify playlist link to start downloading.</p>
+        <p>Paste a Spotify playlist URL to start downloading.</p>
         <div className="quick-actions">
           <Link to="/download" className="btn-primary">
             Download Music
@@ -26,7 +26,10 @@ export function Home() {
             Organize Library
           </Link>
           <Link to="/downloads" className="btn-secondary">
-            Active Downloads ({activeDownloads.length})
+            Active Downloads
+            {activeDownloads.length > 0 && (
+              <span className="badge">{activeDownloads.length}</span>
+            )}
           </Link>
         </div>
       </div>
@@ -35,17 +38,17 @@ export function Home() {
         <div className="feature">
           <DownloadIcon className="feature-icon" />
           <h3>Download</h3>
-          <p>Paste a Spotify playlist URL and download via spotdl</p>
+          <p>Save any Spotify playlist to your computer with one click</p>
         </div>
         <div className="feature">
           <OrganizeIcon className="feature-icon" />
           <h3>Organize</h3>
-          <p>Sort your music library by genre</p>
+          <p>Automatically sort your music by genre and artist</p>
         </div>
         <div className="feature">
           <ChartIcon className="feature-icon" />
           <h3>Track</h3>
-          <p>Monitor download progress in real-time</p>
+          <p>Monitor downloads and manage your library with ease</p>
         </div>
       </div>
     </div>

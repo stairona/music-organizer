@@ -80,36 +80,39 @@ export function Download() {
 
   return (
     <div className="download">
-      <h1>Download Spotify Playlist</h1>
+      <h1>Download Music</h1>
 
       <div className="download-card">
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
         <div className="form-group">
-          <label>Spotify Playlist URL:</label>
+          <label htmlFor="playlist-url">Spotify Playlist URL</label>
           <input
+            id="playlist-url"
             type="text"
             value={playlistUrl}
             onChange={(e) => setPlaylistUrl(e.target.value)}
             placeholder="https://open.spotify.com/playlist/..."
             className="url-input"
             disabled={downloading}
+            autoComplete="off"
           />
         </div>
 
         <div className="form-group">
-          <label>Destination Folder:</label>
+          <label htmlFor="destination">Save to Folder</label>
           <div className="destination-input">
             <input
+              id="destination"
               type="text"
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
-              placeholder="/path/to/music"
+              placeholder="Select a folder..."
               readOnly
               disabled={downloading}
             />
             <button onClick={pickDestination} type="button" disabled={downloading} className="btn-secondary">
-              Browse...
+              Browse
             </button>
           </div>
         </div>
@@ -128,10 +131,10 @@ export function Download() {
         <ul>
           <li>Paste a Spotify playlist URL above.</li>
           <li>Choose where to save the downloaded files.</li>
-          <li>Click Start Download and watch progress in the Downloads page.</li>
-          <li>After download completes, use the Organize page to sort files by genre.</li>
+          <li>Click Start Download and watch progress in real-time.</li>
+          <li>After download completes, organize your library by genre.</li>
         </ul>
-        <p><strong>Note:</strong> You don't need to log in. spotdl handles the download.</p>
+        <p><strong>Note:</strong> No login required — spotdl handles authentication automatically.</p>
       </div>
     </div>
   );
