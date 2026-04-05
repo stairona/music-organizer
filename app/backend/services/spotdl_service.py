@@ -63,6 +63,46 @@ def _extract_filename(line: str) -> Optional[str]:
     return None
 
 
+def _extract_playlist_name(line: str) -> Optional[str]:
+    """
+    Extract playlist name from spotdl output.
+    spotdl outputs: "Playlist: My Playlist Name" or "Downloading playlist: My Playlist"
+    """
+    patterns = [
+        r"Playlist:\s+(.+)",
+        r"Downloading playlist:\s+(.+)",
+        r"Fetching playlist:\s+(.+)",
+    ]
+    for pat in patterns:
+        match = re.search(pat, line, re.IGNORECASE)
+        if match:
+            name = match.group(1).strip()
+            # Clean up any trailing punctuation
+            name = name.rstrip(" .")
+            return name
+    return None
+
+
+def _extract_total_tracks(line: str) -> Optional[int]:
+    """
+    Extract total track count from spotdl output.
+    spotdl outputs: "Found 150 tracks" or "Total tracks: 150" or "150 songs"
+    """
+    patterns = [
+        r"Found\s+(\d+)\s+(?:tracks?|songs?)",
+        r"Total\s+(?:tracks?|songs?):\s*(\d+)",
+        r"(\d+)\s+(?:tracks?|songs?)\s+(?:in|total)",
+    ]
+    for pat in patterns:
+        match = re.search(pat, line, re.IGNORECASE)
+        if match:
+            try:
+                return int(match.group(1))
+            except ValueError:
+                pass
+    return None
+
+
 async def _read_stream(stream, task_id: str, total_tracks: int):
     """
     Async read lines from subprocess stdout, parse progress, update store.
@@ -83,6 +123,23 @@ async def _read_stream(stream, task_id: str, total_tracks: int):
             line = line.strip()
             if not line:
                 continue
+
+            # Extract playlist name if found
+            playlist_name = _extract_playlist_name(line)
+            if playlist_name:
+                try:
+                    update_download_task(task_id, {"playlist_name": playlist_name})
+                except Exception as e:
+                    logger.error(f"Failed to update playlist_name: {e}")
+
+            # Extract total tracks if found (only set if we currently have 0)
+            extracted_total = _extract_total_tracks(line)
+            if extracted_total and total_tracks == 0:
+                total_tracks = extracted_total
+                try:
+                    update_download_task(task_id, {"total_tracks": total_tracks})
+                except Exception as e:
+                    logger.error(f"Failed to update total_tracks: {e}")
 
             # Parse percentage
             pct = _extract_percentage(line)
@@ -145,15 +202,9 @@ async def download_playlist(
     # Ensure destination exists
     os.makedirs(destination, exist_ok=True)
 
-    # No Spotify API integration; use placeholder values
-    playlist_name = "Unknown Playlist"
-    total_tracks = 0
-
-    # Update task with placeholder info
+    # Update task status to downloading (playlist_name and total_tracks will be set via log parsing)
     try:
         update_download_task(task_id, {
-            "playlist_name": playlist_name,
-            "total_tracks": total_tracks,
             "status": "downloading",
             "started_at": int(time.time()),
         })
@@ -200,6 +251,14 @@ async def download_playlist(
         # Clean up registry
         _running_processes.pop(task_id, None)
 
+        # Fetch the final task state to get updated total_tracks from log parsing
+        try:
+            final_task = get_download_task(task_id)
+            final_total_tracks = final_task.get("total_tracks", 0) if final_task else 0
+        except Exception as e:
+            logger.error(f"Failed to fetch final task state: {e}")
+            final_total_tracks = 0
+
         # Update task final status
         finished_at = int(time.time())
         if returncode == 0:
@@ -207,15 +266,15 @@ async def download_playlist(
                 update_download_task(task_id, {
                     "status": "completed",
                     "progress_percent": 100.0,
-                    "completed_tracks": total_tracks,
+                    "completed_tracks": final_total_tracks,
                     "finished_at": finished_at,
                 })
                 add_progress_snapshot(
                     task_id=task_id,
                     percent=100.0,
                     current_track="Download complete",
-                    completed_tracks=total_tracks,
-                    total_tracks=total_tracks,
+                    completed_tracks=final_total_tracks,
+                    total_tracks=final_total_tracks,
                 )
                 logger.info(f"Download task {task_id} completed successfully")
             except Exception as e:

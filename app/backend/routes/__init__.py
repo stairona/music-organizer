@@ -136,9 +136,9 @@ async def start_download(
         # Create a unique task ID
         task_id = str(uuid.uuid4())
 
-        # Use placeholder values (no Spotify API call)
-        playlist_name = "Unknown Playlist"
-        total_tracks = 0
+        # Initialize with empty/zero values; will be populated from spotdl output
+        playlist_name = ""  # Will be extracted from spotdl logs
+        total_tracks = 0    # Will be updated once spotdl reports track count
         auto_organize = False  # Manual organize only (per user decision)
 
         # Create download task record
